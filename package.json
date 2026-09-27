@@ -61,10 +61,18 @@
   },
   "license": "MIT",
   "engines": {
-    "node": "^22.19.0 || >=24.0.0"
+    "node": "^22.19.0 || >=24.0.0",
+    "dsh": ">=0.1.2-alpha.1"
   },
   "peerDependencies": {
-    "@deepseek-ai/cordis": "*"
+    "@deepseek-ai/cordis": "*",
+    "@deepseek-ai/dsh-client-locale": "*",
+    "@deepseek-ai/dsh-client-ui-conversation": "*",
+    "@deepseek-ai/dsh-client-ui-primitives": "*",
+    "@deepseek-ai/dsh-client-ui-renderer": "*",
+    "@deepseek-ai/dsh-client-ui-session": "*",
+    "@deepseek-ai/dsh-client-ui-settings": "*",
+    "@deepseek-ai/dsh-client-ui-slots": "*"
   },
   "devDependencies": {
     "@types/node": "^22.20.0",
@@ -75,8 +83,5 @@
     "tsdown": "^0.22.14",
     "typescript": "^5.9.3",
     "vitest": "^4.1.11"
-  },
-  "pnpm": {
-    "autoInstallPeers": false
   }
 }
