@@ -69,6 +69,10 @@ export type RainbowKey =
   | 'petPat2'
   | 'petStumble'
   | 'petWake'
+  | 'petStartle1'
+  | 'petStartle2'
+  | 'petHum1'
+  | 'petHum2'
   | 'petMenu'
   | 'petMenuScope'
   | 'petMenuScopeAll'
@@ -143,6 +147,10 @@ export const zh: Record<RainbowKey, string> = {
   petPat2: '再摸一会儿',
   petStumble: '哎呀，晃了一下',
   petWake: '哈啊——睡醒了',
+  petStartle1: '哇！醒了醒了',
+  petStartle2: '吓、吓我一跳',
+  petHum1: '哼哼～哼哼～',
+  petHum2: '♪ 啦啦啦 ♪',
   petMenu: '小虹的菜单',
   petMenuScope: '关注范围',
   petMenuScopeAll: '全部会话',
@@ -218,6 +226,10 @@ export const en: Record<RainbowKey, string> = {
   petPat2: 'Just a little longer…',
   petStumble: 'Whoa— that was a wobble',
   petWake: 'Yaaawn—I am awake',
+  petStartle1: "Whoa! I'm up, I'm up",
+  petStartle2: 'You startled me!',
+  petHum1: 'Hmm~ hmm-hmm~',
+  petHum2: '♪ la-la-la ♪',
   petMenu: "Prism's menu",
   petMenuScope: 'Watch scope',
   petMenuScopeAll: 'All sessions',

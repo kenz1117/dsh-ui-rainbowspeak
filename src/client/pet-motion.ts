@@ -34,6 +34,24 @@ export const SPIN_LINES: readonly RainbowKey[] = ['petSpin1', 'petSpin2']
 /** 长按摸摸的台词。 */
 export const PAT_LINES: readonly RainbowKey[] = ['petPat1', 'petPat2']
 
+/** 打盹中被戳（惊醒）的台词。 */
+export const STARTLE_LINES: readonly RainbowKey[] = ['petStartle1', 'petStartle2']
+
+/** 闲时哼小曲的台词。 */
+export const HUM_LINES: readonly RainbowKey[] = ['petHum1', 'petHum2']
+
+/** 闲多久之后才会哼小曲（ms）：比打盹短，比普通待机情绪更「闲」。 */
+export const HUM_AFTER_MS = 45_000
+
+/**
+ * 哼完一支小曲后的冷却（ms）：36s–60s 随机——哼歌是情致，不是报时。
+ * @param random - 随机源（默认 `Math.random`）。
+ * @returns 冷却时长（ms）。
+ */
+export function humDelay(random: () => number = Math.random): number {
+  return 36_000 + random() * 24_000
+}
+
 /** 连戳判定窗口（ms）：两次戳击间隔小于它就算「连戳」，触发转圈。 */
 export const POKE_WINDOW_MS = 320
 
@@ -114,6 +132,30 @@ export function wanderGaze(random: () => number = Math.random, max: number = WAN
  */
 export function wanderDelay(random: () => number = Math.random): number {
   return 2400 + random() * 3200
+}
+
+/** 入场动画的种类（登场时随机挑一个）。 */
+export type PetEntrance = 'pop' | 'drop' | 'spin' | 'hop'
+
+/** 全部入场动画。 */
+export const ENTRANCES: readonly PetEntrance[] = ['pop', 'drop', 'spin', 'hop']
+
+/** 各入场动画的时长（ms），与 CSS 段一一对应。 */
+export const ENTRANCE_MS: Readonly<Record<PetEntrance, number>> = {
+  pop: 620,
+  drop: 760,
+  spin: 780,
+  hop: 700,
+}
+
+/**
+ * 随机挑一个入场动画：每次登场方式都不同，重逢才有惊喜。
+ * @param random - 随机源（默认 `Math.random`）。
+ * @returns 入场动画种类。
+ */
+export function pickEntrance(random: () => number = Math.random): PetEntrance {
+  const index = Math.floor(random() * ENTRANCES.length)
+  return ENTRANCES[Math.min(index, ENTRANCES.length - 1)]!
 }
 
 /**

@@ -26,7 +26,7 @@ import { useCallback, useEffect, useMemo, useRef, useState, useSyncExternalStore
 import type { PropsRuntime } from '@deepseek-ai/dsh-client-ui-slots'
 import styles from './pet.module.css'
 import { derivePetState, noticeFromReason, readCurrentSessionId, scopeActivity, SESSION_EVENT, type PetNotice, type PetState } from './pet-state.ts'
-import { isRapidPoke, LONG_PRESS_MS, lookVector, PAT_LINES, pickKey, POKE_LINES, SPIN_LINES, STATE_LINES, swingAngle, wanderDelay, wanderGaze } from './pet-motion.ts'
+import { ENTRANCE_MS, HUM_AFTER_MS, HUM_LINES, humDelay, isRapidPoke, LONG_PRESS_MS, lookVector, PAT_LINES, pickEntrance, pickKey, POKE_LINES, SPIN_LINES, STARTLE_LINES, STATE_LINES, swingAngle, wanderDelay, wanderGaze, type PetEntrance } from './pet-motion.ts'
 import { subscribeFrames, subscribeHealth } from './pet-store.ts'
 import { getPetLocaleRevision, subscribePetLocale, translatePet } from './pet-locale.ts'
 import { PREFS_EVENT, loadPrefs, savePrefs, PET_BASE_SIZE, type RainbowPrefs } from './preferences.ts'
@@ -72,6 +72,15 @@ const SCROLL_GAZE_POINTER_IDLE_MS = 2500
 /** 一次性台词的展示时长（ms）。 */
 const FLASH_MS = 2200
 
+/** 惊醒（打盹中被戳）动画时长（ms），与 CSS pet-startle 周期一致。 */
+const STARTLE_MS = 620
+
+/** 拖拽松手后的落地小弹跳时长（ms），与 CSS pet-land 周期一致。 */
+const LAND_MS = 460
+
+/** 哼小曲时长（ms），与 CSS pet-hum 周期一致。 */
+const HUM_MS = 1800
+
 /** 挤压回弹的时长（ms）。 */
 const SQUASH_MS = 420
 
@@ -91,7 +100,7 @@ const MENU_WIDTH = 210
 /** 菜单估算高度（px）：决定开在上方还是下方。 */
 const MENU_HEIGHT = 150
 
-/** 正在飞的小心心。 */
+/** 正在飞的小粒子（心心 / 音符）。 */
 interface Heart {
   /** 唯一标识（用于移除）。 */
   readonly id: number
@@ -101,6 +110,8 @@ interface Heart {
   readonly dy: number
   /** 延迟（ms），让心心错落着冒出来。 */
   readonly delay: number
+  /** 显示字符（♥ 或 ♪）。 */
+  readonly char: string
 }
 
 /** 拖拽进行中的内部状态。 */
@@ -158,6 +169,10 @@ export function PetRoot(props: PropsRuntime<'shell.overlay'>): React.ReactElemen
   const patFiredRef = useRef(false)
   const spinSeqRef = useRef(0)
   const patSeqRef = useRef(0)
+  const startleSeqRef = useRef(0)
+  const humSeqRef = useRef(0)
+  const humNextAtRef = useRef(0)
+  const lastInteractionAtRef = useRef(Date.now())
   const prevStateRef = useRef<PetState>('resting')
   const pointerLastMoveRef = useRef(0)
 
@@ -181,6 +196,11 @@ export function PetRoot(props: PropsRuntime<'shell.overlay'>): React.ReactElemen
   const [patting, setPatting] = useState(false)
   const [stumbling, setStumbling] = useState(false)
   const [stretching, setStretching] = useState(false)
+  const [startling, setStartling] = useState(false)
+  const [landing, setLanding] = useState(false)
+  const [humming, setHumming] = useState(false)
+  const [entrance, setEntrance] = useState<PetEntrance | null>(null)
+  const enteredRef = useRef(false)
 
   /** 延迟任务：登记进 timersRef，组件卸载时统一清掉（反应动画不会拖着僵尸定时器）。 */
   const later = useCallback((fn: () => void, ms: number): void => {
@@ -197,6 +217,21 @@ export function PetRoot(props: PropsRuntime<'shell.overlay'>): React.ReactElemen
     setFlash({ key, until: Date.now() + ms })
     later(() => { setFlash(null) }, ms)
   }, [later])
+
+  // 入场动画：每次「出现」（首次挂载 / 从躲藏中叫回）随机挑一个登场方式。
+  // 关掉动画（petMotion=off）就安静出现；躲藏期间重置标记，下次回来再演。
+  useEffect(() => {
+    if (!prefs.petEnabled) {
+      enteredRef.current = false
+      return
+    }
+    if (enteredRef.current) return
+    enteredRef.current = true
+    if (prefs.petMotion === 'off') return
+    const kind = pickEntrance()
+    setEntrance(kind)
+    later(() => { setEntrance(null) }, ENTRANCE_MS[kind])
+  }, [prefs.petEnabled, prefs.petMotion, later])
 
   // 语言切换：订阅宿主 locale 的版本号，变了就重渲染。
   useSyncExternalStore(subscribePetLocale, getPetLocaleRevision, getPetLocaleRevision)
@@ -314,6 +349,27 @@ export function PetRoot(props: PropsRuntime<'shell.overlay'>): React.ReactElemen
     [statuses, currentSessionId, prefs.petScope],
   )
 
+  /** 炸开几颗小粒子（默认心心；哼小曲时传音符）。 */
+  const spawnHearts = useCallback((char: string = '♥') => {
+    const count = 3 + Math.floor(Math.random() * 3)
+    const items: Heart[] = Array.from({ length: count }, () => ({
+      id: heartIdRef.current++,
+      dx: (Math.random() - 0.5) * 58,
+      dy: -12 - Math.random() * 28,
+      delay: Math.random() * 170,
+      char,
+    }))
+    setHearts((current) => [...current, ...items])
+    window.setTimeout(() => {
+      setHearts((current) => current.filter((heart) => !items.some((item) => item.id === heart.id)))
+    }, 1500)
+  }, [])
+
+  /** 记一次用户互动：哼小曲只在真正闲下来时才发生。 */
+  const touchInteraction = useCallback((): void => {
+    lastInteractionAtRef.current = Date.now()
+  }, [])
+
   // 状态推导：定时重算，让一次性提示自然过期、让空闲自然进入打盹。
   // 从打盹醒来时补一个伸懒腰——睡与醒之间要有过渡，不能「啪」地切换。
   useEffect(() => {
@@ -333,12 +389,26 @@ export function PetRoot(props: PropsRuntime<'shell.overlay'>): React.ReactElemen
         showFlash('petWake')
         later(() => { setStretching(false) }, STRETCH_MS)
       }
+      // 闲得自在时哼支小曲：比打盹更早发生、冷却随机——情致不是报时。
+      if (
+        next === 'resting'
+        && prefs.petMotion !== 'off'
+        && now - lastInteractionAtRef.current >= HUM_AFTER_MS
+        && now >= humNextAtRef.current
+      ) {
+        humNextAtRef.current = now + humDelay()
+        humSeqRef.current += 1
+        setHumming(true)
+        showFlash(pickKey(HUM_LINES, humSeqRef.current), 2400)
+        spawnHearts('♪')
+        later(() => { setHumming(false) }, HUM_MS)
+      }
       setPetState((current) => (current === next ? current : next))
     }
     tick()
     const timer = window.setInterval(tick, 1000)
     return () => { window.clearInterval(timer) }
-  }, [activity.running, activity.waiting, notice, later, showFlash])
+  }, [activity.running, activity.waiting, notice, later, prefs.petMotion, showFlash, spawnHearts])
 
   // 环境感知：窗口被拖拽/分屏改变大小 → 地板在动，踉跄一下。
   // 拖动窗口把手会连发 resize，防抖只认停稳的那一下；拖拽宠物中不触发。
@@ -458,23 +528,9 @@ export function PetRoot(props: PropsRuntime<'shell.overlay'>): React.ReactElemen
     state.frame = requestAnimationFrame(step)
   }, [])
 
-  /** 炸开几颗小心心。 */
-  const spawnHearts = useCallback(() => {
-    const count = 3 + Math.floor(Math.random() * 3)
-    const items: Heart[] = Array.from({ length: count }, () => ({
-      id: heartIdRef.current++,
-      dx: (Math.random() - 0.5) * 58,
-      dy: -12 - Math.random() * 28,
-      delay: Math.random() * 170,
-    }))
-    setHearts((current) => [...current, ...items])
-    window.setTimeout(() => {
-      setHearts((current) => current.filter((heart) => !items.some((item) => item.id === heart.id)))
-    }, 1500)
-  }, [])
-
   /** 连戳转圈：转完还晕一小会儿（×_×）。 */
   const startSpin = useCallback((): void => {
+    touchInteraction()
     spinSeqRef.current += 1
     setSpinning(true)
     showFlash(pickKey(SPIN_LINES, spinSeqRef.current), SPIN_MS + DIZZY_MS + 400)
@@ -484,25 +540,37 @@ export function PetRoot(props: PropsRuntime<'shell.overlay'>): React.ReactElemen
       setDizzy(true)
     }, SPIN_MS)
     later(() => { setDizzy(false) }, SPIN_MS + DIZZY_MS)
-  }, [later, prefs.petMotion, showFlash, spawnHearts])
+  }, [later, prefs.petMotion, showFlash, spawnHearts, touchInteraction])
 
   /** 长按摸摸：果冻鼓起 + 大腮红 + 心心。 */
   const firePat = useCallback((): void => {
+    touchInteraction()
     patSeqRef.current += 1
     setPatting(true)
     setBubbleUntil(Date.now() + PAT_MS + 200)
     showFlash(pickKey(PAT_LINES, patSeqRef.current))
     if (prefs.petMotion !== 'off') spawnHearts()
     later(() => { setPatting(false) }, PAT_MS)
-  }, [later, prefs.petMotion, showFlash, spawnHearts])
+  }, [later, prefs.petMotion, showFlash, spawnHearts, touchInteraction])
 
-  /** 戳一下：挤压 + 换台词 + 冒心心；连戳（双击）升级成转圈。 */
+  /** 戳一下：挤压 + 换台词 + 冒心心；连戳（双击）升级成转圈；
+      打盹中被戳则是惊醒——小跳一吓，并把这一下当成活动（真的醒了）。 */
   const onPoke = useCallback(() => {
     const now = Date.now()
+    touchInteraction()
     const rapid = isRapidPoke(lastPokeAtRef.current, now)
     lastPokeAtRef.current = now
     if (rapid) {
       startSpin()
+      return
+    }
+    if (petState === 'sleeping') {
+      lastActivityRef.current = now
+      startleSeqRef.current += 1
+      setStartling(true)
+      setBubbleUntil(now + POKE_MS)
+      showFlash(pickKey(STARTLE_LINES, startleSeqRef.current))
+      later(() => { setStartling(false) }, STARTLE_MS)
       return
     }
     setPokeSeq((n) => n + 1)
@@ -510,7 +578,7 @@ export function PetRoot(props: PropsRuntime<'shell.overlay'>): React.ReactElemen
     setBubbleUntil(Date.now() + POKE_MS)
     runSquash()
     spawnHearts()
-  }, [runSquash, spawnHearts, startSpin])
+  }, [later, petState, runSquash, showFlash, spawnHearts, startSpin, touchInteraction])
 
   useEffect(() => {
     if (!poking) return
@@ -611,9 +679,13 @@ export function PetRoot(props: PropsRuntime<'shell.overlay'>): React.ReactElemen
       onPoke()
       return
     }
+    touchInteraction()
     setPosition({ x: drag.x, y: drag.y })
     savePrefs({ ...prefs, petX: drag.x, petY: drag.y })
-  }, [onPoke, prefs])
+    // 松手落地：一记小弹跳——被「放下来」而不是「传送」。
+    setLanding(true)
+    later(() => { setLanding(false) }, LAND_MS)
+  }, [later, onPoke, prefs, touchInteraction])
 
   // 菜单：点外面或按 Esc 关闭。
   // 注意：必须忽略菜单**内部**的 pointerdown——否则菜单会先被关掉，
@@ -667,6 +739,10 @@ export function PetRoot(props: PropsRuntime<'shell.overlay'>): React.ReactElemen
       data-pat={patting ? 'true' : undefined}
       data-stumble={stumbling ? 'true' : undefined}
       data-stretch={stretching ? 'true' : undefined}
+      data-startle={startling ? 'true' : undefined}
+      data-land={landing ? 'true' : undefined}
+      data-hum={humming ? 'true' : undefined}
+      data-entrance={entrance ?? undefined}
       style={{
         left: position?.x ?? undefined,
         top: position?.y ?? undefined,
@@ -739,7 +815,7 @@ export function PetRoot(props: PropsRuntime<'shell.overlay'>): React.ReactElemen
             style={{ left: `${50 + heart.dx / 2}%`, top: `${52 + heart.dy}%`, animationDelay: `${heart.delay}ms` }}
             aria-hidden="true"
           >
-            ♥
+            {heart.char}
           </span>
         ))}
       </button>

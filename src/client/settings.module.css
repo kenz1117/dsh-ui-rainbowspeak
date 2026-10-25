@@ -1,10 +1,21 @@
 /* 「彩虹边框」设置面板样式：全部颜色/间距取宿主 --dsw-* 语义 token，无字面色值。 */
 
-/* section 容器：纵向排布设置行。 */
+/* section 容器：纵向排布分组卡片。 */
 .section {
   display: flex;
   flex-direction: column;
   gap: var(--dsw-specific-spacing-4, 16px);
+}
+
+/* 分组卡片：一圈细描边把「彩虹边框」与「桌面宠物」两个主题分开，
+   视觉上一眼可分、滚动时可整体辨认。 */
+.groupCard {
+  display: flex;
+  flex-direction: column;
+  gap: var(--dsw-specific-spacing-4, 16px);
+  padding: var(--dsw-specific-spacing-4, 16px);
+  border: 1px solid var(--dsw-alias-border-l1);
+  border-radius: 14px;
 }
 
 /* 一行设置：左文案右控件。 */
@@ -133,13 +144,12 @@
   justify-content: flex-end;
 }
 
-/* 分组小标题（桌面宠物）：左对齐、压低一档，留出上方的呼吸空间。 */
+/* 分组小标题：卡片内的第一行——小一号、次级色，标头不当主角。 */
 .groupTitle {
   display: block;
-  margin-top: 28px;
-  padding-top: 18px;
-  border-top: 1px solid var(--dsw-alias-border-l1);
-  font-size: 15px;
+  margin: -2px 0 -6px;
+  font-size: 13px;
   font-weight: 600;
-  color: var(--dsw-alias-label-primary);
+  letter-spacing: 0.02em;
+  color: var(--dsw-alias-label-secondary);
 }

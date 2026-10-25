@@ -67,196 +67,202 @@ export function RainbowSettingsSection({ t }: PropsLocale<typeof NS>): React.Rea
   const commit = setPrefs
   return (
     <div className={styles.section}>
-      <div className={styles.row}>
-        <div className={styles.rowText}>
-          <span className={styles.label}>{t('enable')}</span>
-          <span className={styles.desc}>{t('enableDesc')}</span>
-        </div>
-        <Switch
-          checked={prefs.enabled}
-          label={t('enable')}
-          onChange={(next) => { update(prefs, { enabled: next }, commit) }}
-        />
-      </div>
+      <div className={styles.groupCard}>
+        <span className={styles.groupTitle}>{t('nav')}</span>
 
-      <div className={styles.row}>
-        <div className={styles.rowText}>
-          <span className={styles.label}>{t('period')}</span>
-          <span className={styles.desc}>{t('stateNote')}</span>
-        </div>
-        <div className={styles.rangeRow}>
-          <input
-            className={styles.range}
-            type="range"
-            min={1}
-            max={10}
-            step={1}
-            value={prefs.periodSec}
-            aria-label={t('period')}
-            onChange={(event) => { update(prefs, { periodSec: Number(event.currentTarget.value) }, commit) }}
+        <div className={styles.row}>
+          <div className={styles.rowText}>
+            <span className={styles.label}>{t('enable')}</span>
+            <span className={styles.desc}>{t('enableDesc')}</span>
+          </div>
+          <Switch
+            checked={prefs.enabled}
+            label={t('enable')}
+            onChange={(next) => { update(prefs, { enabled: next }, commit) }}
           />
-          <span className={styles.value}>{prefs.periodSec} {t('unitPerLoop')}</span>
         </div>
-      </div>
 
-      <div className={styles.row}>
-        <div className={styles.rowText}>
-          <span className={styles.label}>{t('width')}</span>
+        <div className={styles.row}>
+          <div className={styles.rowText}>
+            <span className={styles.label}>{t('period')}</span>
+            <span className={styles.desc}>{t('stateNote')}</span>
+          </div>
+          <div className={styles.rangeRow}>
+            <input
+              className={styles.range}
+              type="range"
+              min={1}
+              max={10}
+              step={1}
+              value={prefs.periodSec}
+              aria-label={t('period')}
+              onChange={(event) => { update(prefs, { periodSec: Number(event.currentTarget.value) }, commit) }}
+            />
+            <span className={styles.value}>{prefs.periodSec} {t('unitPerLoop')}</span>
+          </div>
         </div>
-        <div className={styles.rangeRow}>
-          <input
-            className={styles.range}
-            type="range"
-            min={1}
-            max={6}
-            step={1}
-            value={prefs.widthPx}
-            aria-label={t('width')}
-            onChange={(event) => { update(prefs, { widthPx: Number(event.currentTarget.value) }, commit) }}
+
+        <div className={styles.row}>
+          <div className={styles.rowText}>
+            <span className={styles.label}>{t('width')}</span>
+          </div>
+          <div className={styles.rangeRow}>
+            <input
+              className={styles.range}
+              type="range"
+              min={1}
+              max={6}
+              step={1}
+              value={prefs.widthPx}
+              aria-label={t('width')}
+              onChange={(event) => { update(prefs, { widthPx: Number(event.currentTarget.value) }, commit) }}
+            />
+            <span className={styles.value}>{prefs.widthPx} {t('unitPx')}</span>
+          </div>
+        </div>
+
+        <div className={styles.stackRow}>
+          <span className={styles.label}>{t('palette')}</span>
+          <div className={styles.chipGrid}>
+            {PALETTE_OPTIONS.map((option) => (
+              <button
+                key={option.value}
+                type="button"
+                className={prefs.palette === option.value ? `${styles.chip} ${styles.chipActive}` : styles.chip}
+                onClick={() => { update(prefs, { palette: option.value }, commit) }}
+              >
+                <span
+                  className={styles.swatch}
+                  style={{ background: `conic-gradient(from 0deg, ${PALETTE_STOPS[option.value]})` }}
+                  aria-hidden="true"
+                />
+                <span className={styles.chipLabel}>{t(option.key)}</span>
+              </button>
+            ))}
+          </div>
+        </div>
+
+        <div className={styles.row}>
+          <div className={styles.rowText}>
+            <span className={styles.label}>{t('side')}</span>
+          </div>
+          <div className={styles.chipRow}>
+            {SIDE_OPTIONS.map((option) => (
+              <button
+                key={option.value}
+                type="button"
+                className={prefs.side === option.value ? `${styles.chip} ${styles.chipActive}` : styles.chip}
+                onClick={() => { update(prefs, { side: option.value }, commit) }}
+              >
+                {t(option.key)}
+              </button>
+            ))}
+          </div>
+        </div>
+
+        <div className={styles.row}>
+          <div className={styles.rowText}>
+            <span className={styles.label}>{t('reverse')}</span>
+          </div>
+          <Switch
+            checked={prefs.reverse}
+            label={t('reverse')}
+            onChange={(next) => { update(prefs, { reverse: next }, commit) }}
           />
-          <span className={styles.value}>{prefs.widthPx} {t('unitPx')}</span>
         </div>
-      </div>
 
-      <div className={styles.stackRow}>
-        <span className={styles.label}>{t('palette')}</span>
-        <div className={styles.chipGrid}>
-          {PALETTE_OPTIONS.map((option) => (
-            <button
-              key={option.value}
-              type="button"
-              className={prefs.palette === option.value ? `${styles.chip} ${styles.chipActive}` : styles.chip}
-              onClick={() => { update(prefs, { palette: option.value }, commit) }}
-            >
-              <span
-                className={styles.swatch}
-                style={{ background: `conic-gradient(from 0deg, ${PALETTE_STOPS[option.value]})` }}
-                aria-hidden="true"
-              />
-              <span className={styles.chipLabel}>{t(option.key)}</span>
-            </button>
-          ))}
-        </div>
-      </div>
-
-      <div className={styles.row}>
-        <div className={styles.rowText}>
-          <span className={styles.label}>{t('side')}</span>
-        </div>
-        <div className={styles.chipRow}>
-          {SIDE_OPTIONS.map((option) => (
-            <button
-              key={option.value}
-              type="button"
-              className={prefs.side === option.value ? `${styles.chip} ${styles.chipActive}` : styles.chip}
-              onClick={() => { update(prefs, { side: option.value }, commit) }}
-            >
-              {t(option.key)}
-            </button>
-          ))}
-        </div>
-      </div>
-
-      <div className={styles.row}>
-        <div className={styles.rowText}>
-          <span className={styles.label}>{t('reverse')}</span>
-        </div>
-        <Switch
-          checked={prefs.reverse}
-          label={t('reverse')}
-          onChange={(next) => { update(prefs, { reverse: next }, commit) }}
-        />
-      </div>
-
-      <div className={styles.row}>
-        <div className={styles.rowText}>
-          <span className={styles.label}>{t('breathe')}</span>
-        </div>
-        <Switch
-          checked={prefs.breathe}
-          label={t('breathe')}
-          onChange={(next) => { update(prefs, { breathe: next }, commit) }}
-        />
-      </div>
-
-      <div className={styles.resetRow}>
-        <button
-          type="button"
-          className={styles.chip}
-          onClick={() => { const next = { ...DEFAULT_PREFS }; setPrefs(next); savePrefs(next) }}
-        >
-          {t('reset')}
-        </button>
-      </div>
-
-      <span className={styles.groupTitle}>{t('petNav')}</span>
-
-      <div className={styles.row}>
-        <div className={styles.rowText}>
-          <span className={styles.label}>{t('petEnable')}</span>
-          <span className={styles.desc}>{t('petEnableDesc')}</span>
-        </div>
-        <Switch
-          checked={prefs.petEnabled}
-          label={t('petEnable')}
-          onChange={(next) => { update(prefs, { petEnabled: next }, commit) }}
-        />
-      </div>
-
-      <div className={styles.row}>
-        <div className={styles.rowText}>
-          <span className={styles.label}>{t('petScope')}</span>
-          <span className={styles.desc}>{t('petScopeNote')}</span>
-        </div>
-        <div className={styles.chipRow}>
-          {PET_SCOPE_OPTIONS.map((option) => (
-            <button
-              key={option.value}
-              type="button"
-              className={prefs.petScope === option.value ? `${styles.chip} ${styles.chipActive}` : styles.chip}
-              onClick={() => { update(prefs, { petScope: option.value }, commit) }}
-            >
-              {t(option.key)}
-            </button>
-          ))}
-        </div>
-      </div>
-
-      <div className={styles.row}>
-        <div className={styles.rowText}>
-          <span className={styles.label}>{t('petMotion')}</span>
-          <span className={styles.desc}>{t('petMotionNote')}</span>
-        </div>
-        <div className={styles.chipRow}>
-          {PET_MOTION_OPTIONS.map((option) => (
-            <button
-              key={option.value}
-              type="button"
-              className={prefs.petMotion === option.value ? `${styles.chip} ${styles.chipActive}` : styles.chip}
-              onClick={() => { update(prefs, { petMotion: option.value }, commit) }}
-            >
-              {t(option.key)}
-            </button>
-          ))}
-        </div>
-      </div>
-
-      <div className={styles.row}>
-        <div className={styles.rowText}>
-          <span className={styles.label}>{t('petScale')}</span>
-        </div>
-        <div className={styles.rangeRow}>
-          <input
-            className={styles.range}
-            type="range"
-            min={0.6}
-            max={1.6}
-            step={0.1}
-            value={prefs.petScale}
-            aria-label={t('petScale')}
-            onChange={(event) => { update(prefs, { petScale: Number(event.currentTarget.value) }, commit) }}
+        <div className={styles.row}>
+          <div className={styles.rowText}>
+            <span className={styles.label}>{t('breathe')}</span>
+          </div>
+          <Switch
+            checked={prefs.breathe}
+            label={t('breathe')}
+            onChange={(next) => { update(prefs, { breathe: next }, commit) }}
           />
-          <span className={styles.value}>{prefs.petScale.toFixed(1)}×</span>
+        </div>
+
+        <div className={styles.resetRow}>
+          <button
+            type="button"
+            className={styles.chip}
+            onClick={() => { const next = { ...DEFAULT_PREFS }; setPrefs(next); savePrefs(next) }}
+          >
+            {t('reset')}
+          </button>
+        </div>
+      </div>
+
+      <div className={styles.groupCard}>
+        <span className={styles.groupTitle}>{t('petNav')}</span>
+
+        <div className={styles.row}>
+          <div className={styles.rowText}>
+            <span className={styles.label}>{t('petEnable')}</span>
+            <span className={styles.desc}>{t('petEnableDesc')}</span>
+          </div>
+          <Switch
+            checked={prefs.petEnabled}
+            label={t('petEnable')}
+            onChange={(next) => { update(prefs, { petEnabled: next }, commit) }}
+          />
+        </div>
+
+        <div className={styles.row}>
+          <div className={styles.rowText}>
+            <span className={styles.label}>{t('petScope')}</span>
+            <span className={styles.desc}>{t('petScopeNote')}</span>
+          </div>
+          <div className={styles.chipRow}>
+            {PET_SCOPE_OPTIONS.map((option) => (
+              <button
+                key={option.value}
+                type="button"
+                className={prefs.petScope === option.value ? `${styles.chip} ${styles.chipActive}` : styles.chip}
+                onClick={() => { update(prefs, { petScope: option.value }, commit) }}
+              >
+                {t(option.key)}
+              </button>
+            ))}
+          </div>
+        </div>
+
+        <div className={styles.row}>
+          <div className={styles.rowText}>
+            <span className={styles.label}>{t('petMotion')}</span>
+            <span className={styles.desc}>{t('petMotionNote')}</span>
+          </div>
+          <div className={styles.chipRow}>
+            {PET_MOTION_OPTIONS.map((option) => (
+              <button
+                key={option.value}
+                type="button"
+                className={prefs.petMotion === option.value ? `${styles.chip} ${styles.chipActive}` : styles.chip}
+                onClick={() => { update(prefs, { petMotion: option.value }, commit) }}
+              >
+                {t(option.key)}
+              </button>
+            ))}
+          </div>
+        </div>
+
+        <div className={styles.row}>
+          <div className={styles.rowText}>
+            <span className={styles.label}>{t('petScale')}</span>
+          </div>
+          <div className={styles.rangeRow}>
+            <input
+              className={styles.range}
+              type="range"
+              min={0.6}
+              max={1.6}
+              step={0.1}
+              value={prefs.petScale}
+              aria-label={t('petScale')}
+              onChange={(event) => { update(prefs, { petScale: Number(event.currentTarget.value) }, commit) }}
+            />
+            <span className={styles.value}>{prefs.petScale.toFixed(1)}×</span>
+          </div>
         </div>
       </div>
     </div>

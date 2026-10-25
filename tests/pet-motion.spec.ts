@@ -2,7 +2,7 @@
  * 桌宠互动纯计算测试：台词轮换、视线夹紧、闲逛扫视、连戳判定、摆动角、挤压曲线。
  */
 import { describe, expect, it } from 'vitest'
-import { isRapidPoke, lookVector, LONG_PRESS_MS, PAT_LINES, pickKey, POKE_LINES, SPIN_LINES, STATE_LINES, squashCurve, swingAngle, wanderDelay, wanderGaze, WANDER_MAX } from '../src/client/pet-motion.ts'
+import { ENTRANCES, ENTRANCE_MS, HUM_LINES, humDelay, isRapidPoke, lookVector, LONG_PRESS_MS, PAT_LINES, pickEntrance, pickKey, POKE_LINES, SPIN_LINES, squashCurve, STARTLE_LINES, STATE_LINES, swingAngle, wanderDelay, wanderGaze, WANDER_MAX } from '../src/client/pet-motion.ts'
 import type { RainbowKey } from '../src/client/locales.ts'
 import type { PetState } from '../src/client/pet-state.ts'
 
@@ -33,6 +33,8 @@ describe('pickKey', () => {
     expect(POKE_LINES.length).toBeGreaterThanOrEqual(5)
     expect(SPIN_LINES.length).toBeGreaterThanOrEqual(2)
     expect(PAT_LINES.length).toBeGreaterThanOrEqual(2)
+    expect(STARTLE_LINES.length).toBeGreaterThanOrEqual(2)
+    expect(HUM_LINES.length).toBeGreaterThanOrEqual(2)
   })
 })
 
@@ -90,6 +92,37 @@ describe('wanderDelay', () => {
   it('区间端点可取到（随机源注入）', () => {
     expect(wanderDelay(() => 0)).toBe(2400)
     expect(wanderDelay(() => 1)).toBe(5600)
+  })
+})
+
+describe('humDelay', () => {
+  it('冷却在 36s–60s 区间内', () => {
+    for (let i = 0; i < 200; i++) {
+      const delay = humDelay(Math.random)
+      expect(delay).toBeGreaterThanOrEqual(36000)
+      expect(delay).toBeLessThanOrEqual(60000)
+    }
+  })
+
+  it('区间端点可取到（随机源注入）', () => {
+    expect(humDelay(() => 0)).toBe(36000)
+    expect(humDelay(() => 1)).toBe(60000)
+  })
+})
+
+describe('pickEntrance', () => {
+  it('任何随机源都返回合法入场动画（含 random()=1 的越界边缘）', () => {
+    for (let i = 0; i < 200; i++) {
+      expect(ENTRANCES).toContain(pickEntrance(Math.random))
+    }
+    expect(ENTRANCES).toContain(pickEntrance(() => 0))
+    expect(ENTRANCES).toContain(pickEntrance(() => 1))
+  })
+
+  it('每个入场动画都有时长', () => {
+    for (const kind of ENTRANCES) {
+      expect(ENTRANCE_MS[kind]).toBeGreaterThan(0)
+    }
   })
 })
 

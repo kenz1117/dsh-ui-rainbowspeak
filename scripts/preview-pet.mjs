@@ -28,10 +28,14 @@ const STATES = [
   ['sleeping', '打盹'],
 ]
 
-/** 一次性反应（不能常驻，预览成静态格子）。 */
+/** 一次性反应与入场动画（不能常驻，预览成静态格子；attr 可带值：entrance:pop）。 */
 const REACTIONS = [
   ['dizzy', '晕（转圈后）'],
   ['pat', '被摸摸'],
+  ['startle', '惊醒'],
+  ['hum', '哼小曲'],
+  ['entrance:pop', '入场·弹现'],
+  ['entrance:hop', '入场·蹦入'],
 ]
 
 /**
@@ -41,7 +45,9 @@ const REACTIONS = [
  * @returns 标记字符串。
  */
 function petMarkup(state, reaction = '') {
-  const reactionAttr = reaction === '' ? '' : ` data-${reaction}="true"`
+  const reactionAttr = reaction === '' ? ''
+    : reaction.includes(':') ? ` data-${reaction.split(':')[0]}="${reaction.split(':')[1]}"`
+      : ` data-${reaction}="true"`
   return `<div class="pet" data-state="${state}" data-dragging="false" data-remote="connected" data-motion="full"${reactionAttr}>
   <span class="aura"></span>
   <span class="bubble" data-visible="false"></span>

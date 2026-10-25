@@ -49,12 +49,15 @@ Prism's **success and failure follow the host's authoritative turn boundaries** 
 - **Poke it** — it squashes and springs back, says one of five rotating lines, and a few hearts pop out.
 - **Double-poke it** — it spins a full turn, then sees ×_× for a moment.
 - **Press and hold** — that's a pat: a jelly inflate, happy closed eyes, full blush.
-- **Drag it** — it tilts with your momentum, like it's dangling from your fingertip.
+- **Poke it while it naps** — a startle: it bounces up with a shiver, instantly awake.
+- **Drag it** — it tilts with your momentum, like it's dangling from your fingertip; letting go earns a little landing bounce.
+- **Leave it alone long enough** — it hums itself a tune, ♪ notes floating out (random 36–60 s cooldown).
+- **Every appearance** — a random entrance animation: pop in / drop in / spin in / hop in.
 - **Right-click** (or press `Shift+F10`) for a small menu: watch scope / size / let it hide.
 - **Its lines rotate** — two per state, so it never repeats itself.
 - **It notices its environment** — resizing the window makes it stumble, waking up earns you a stretch, and scrolling the chat pulls its gaze along with the content. It lives in the window; it isn't stuck on it.
 - **Three animation intensities** — full / subtle / off. Subtle keeps every reaction but tones down the amplitude; off keeps only expression changes. The OS-level reduced-motion preference always wins.
-- **A true droplet silhouette** — the body is clipped into a pointed-top water drop by an inline SVG path + `clip-path`, with the outline drawn from the same path. Geometrically exact, immune to host-style interference. Layered highlights (main reflection, star dot, top skylight, bottom shade) give it a glass feel, and the ground shadow shrinks with every celebration jump (secondary action).
+- **Glass-drop rendering, pure CSS** — a droplet tip (ahoge) on the head that changes color and posture per state, five layers of light (main reflection, star dot, top skylight, bottom shade, ground bounce), and a radially fading ground shadow that shrinks with every celebration jump (secondary action).
 
 ### The border is the session state
 

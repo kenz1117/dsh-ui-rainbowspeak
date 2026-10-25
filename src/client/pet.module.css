@@ -110,8 +110,9 @@
 }
 
 /* 玻璃高光：让水滴有体积感。
-   三层光——左上大高光（主反射）、大高光里的小星点（第二反射，玻璃的
-   「脆」感）、右下暗部（光穿不过去的厚度）——外加顶部一线天光。
+   五层光——左上大高光（主反射）、大高光里的小星点（第二反射，玻璃的
+   「脆」感）、顶部一线天光、右下暗部（光穿不过去的厚度）、底缘一线
+   地面反光（桌面把光弹回来）。
    渐变终点一律用同色相的 0 alpha（`transparent` 会经 rgba(0,0,0,0)
    插值出灰边，高光就「贴」上去了）。 */
 .sheen {
@@ -122,7 +123,8 @@
     radial-gradient(58% 44% at 31% 20%, rgba(255, 255, 255, 0.66), rgba(255, 255, 255, 0) 100%),
     radial-gradient(16% 12% at 23% 11%, rgba(255, 255, 255, 0.92), rgba(255, 255, 255, 0) 100%),
     linear-gradient(180deg, rgba(255, 255, 255, 0.24), rgba(255, 255, 255, 0) 16%),
-    radial-gradient(84% 58% at 68% 92%, rgba(15, 20, 30, 0.18), rgba(15, 20, 30, 0) 100%);
+    radial-gradient(84% 58% at 68% 92%, rgba(15, 20, 30, 0.18), rgba(15, 20, 30, 0) 100%),
+    radial-gradient(74% 26% at 50% 106%, rgba(255, 255, 255, 0.12), rgba(255, 255, 255, 0) 100%);
   pointer-events: none;
 }
 
@@ -276,6 +278,7 @@
   display: none;
 }
 
+/* 影子：径向两层衰减——中心实、边缘散，比平涂一块更贴「软着地」。 */
 .shadow {
   position: absolute;
   bottom: 2%;
@@ -284,8 +287,8 @@
   height: 6%;
   margin-left: -22%;
   border-radius: 50%;
-  background: light-dark(#0f11151f, #0000004a);
-  filter: blur(3px);
+  background: radial-gradient(closest-side, light-dark(#0f111533, #00000059) 0%, light-dark(#0f111514, #0000002e) 62%, light-dark(#0f111500, #00000000) 100%);
+  filter: blur(2px);
   pointer-events: none;
   transition: transform 0.2s ease, opacity 0.2s ease;
 }
@@ -877,6 +880,41 @@
   animation: pet-stretch 0.95s ease-out 1;
 }
 
+/* 惊醒：打盹中被戳——猛地弹起、落地一抖（起床气）。 */
+.pet[data-startle='true'] .body {
+  animation: pet-startle 0.62s ease-out 1;
+}
+
+/* 落地：拖拽松手后的一记小弹跳——被「放下来」，不是被「传送」。 */
+.pet[data-land='true'] .body {
+  animation: pet-land 0.46s cubic-bezier(0.3, 0.8, 0.4, 1) 1;
+}
+
+/* 哼小曲：闲得自在，抱着手轻轻摇。 */
+.pet[data-hum='true'] .body {
+  animation: pet-hum 1.8s ease-in-out 1;
+}
+
+/* ——— 入场动画（登场时 JS 随机挑一个，播完即摘）———
+   每次出现方式都不同：弹现 / 空降 / 旋转 / 蹦入——重逢才有惊喜。
+   都挂在 .motion 上（整只一起动），影子留在原地等它落地。 */
+.pet[data-entrance='pop'] .motion {
+  animation: pet-enter-pop 0.62s cubic-bezier(0.2, 1.4, 0.4, 1) 1;
+}
+
+.pet[data-entrance='drop'] .motion {
+  animation: pet-enter-drop 0.76s cubic-bezier(0.3, 0.9, 0.4, 1) 1;
+}
+
+.pet[data-entrance='spin'] .motion {
+  transform-origin: 50% 50%;
+  animation: pet-enter-spin 0.78s cubic-bezier(0.3, 0.8, 0.3, 1) 1;
+}
+
+.pet[data-entrance='hop'] .motion {
+  animation: pet-enter-hop 0.7s ease-out 1;
+}
+
 /* ——— 动画强度（设置面板三档）———
    off：用户主动关动画，与系统级「减弱动态效果」等效——表情仍可读，
    只是不再动；subtle：保留全部反应但幅度收敛，把「弹跳」换成「浮动」。 */
@@ -1086,6 +1124,64 @@
   66% { transform: scale(1.05, 0.96) translateY(1px); }
   84% { transform: scale(0.99, 1.02); }
   100% { transform: scale(1, 1) translateY(0); }
+}
+
+/* 惊醒：猛地弹到最高点缩成一条，落地压扁再抖两下。 */
+@keyframes pet-startle {
+  0% { transform: translateY(0) scale(1, 1); }
+  18% { transform: translateY(-16px) scale(0.9, 1.12); }
+  42% { transform: translateY(0) scale(1.12, 0.88); }
+  62% { transform: translateY(-4px) scale(0.98, 1.03); }
+  82% { transform: translateY(0) scale(1.04, 0.97); }
+  100% { transform: translateY(0) scale(1, 1); }
+}
+
+/* 落地：先压缩蓄力感（从半空落下），压扁、回弹、归位。 */
+@keyframes pet-land {
+  0% { transform: translateY(-4px) scale(0.96, 1.05); }
+  38% { transform: translateY(0) scale(1.1, 0.9); }
+  70% { transform: translateY(-2px) scale(0.98, 1.02); }
+  100% { transform: translateY(0) scale(1, 1); }
+}
+
+/* 哼小曲：小幅、慢速的左右摇——自得其乐的节奏。 */
+@keyframes pet-hum {
+  0%, 100% { transform: translateY(0) rotate(0deg); }
+  30% { transform: translateY(-2px) rotate(-4deg); }
+  65% { transform: translateY(0) rotate(4deg); }
+}
+
+/* 入场·弹现：从零弹出，过头一回再归位。 */
+@keyframes pet-enter-pop {
+  0% { transform: scale(0); opacity: 0; }
+  55% { transform: scale(1.14); opacity: 1; }
+  78% { transform: scale(0.95); }
+  100% { transform: scale(1); }
+}
+
+/* 入场·空降：从上方落下，落地压扁、小弹一下。 */
+@keyframes pet-enter-drop {
+  0% { transform: translateY(-44px); }
+  62% { transform: translateY(0) scale(1.12, 0.88); }
+  80% { transform: translateY(-6px) scale(0.97, 1.04); }
+  100% { transform: translateY(0) scale(1); }
+}
+
+/* 入场·旋转：倒着缩着转进来，甩过头再回正。 */
+@keyframes pet-enter-spin {
+  0% { transform: rotate(-200deg) scale(0.3); opacity: 0; }
+  45% { opacity: 1; }
+  70% { transform: rotate(12deg) scale(1.05); }
+  100% { transform: rotate(0deg) scale(1); }
+}
+
+/* 入场·蹦入：从左侧两步蹦进来，最后站稳。 */
+@keyframes pet-enter-hop {
+  0% { transform: translateX(-38px) scale(0.7); opacity: 0; }
+  30% { transform: translateX(-16px) translateY(-8px) scale(1.04, 0.96); opacity: 1; }
+  55% { transform: translateX(4px) translateY(0) scale(0.96, 1.05); }
+  78% { transform: translateX(0) translateY(-3px) scale(1.02, 0.98); }
+  100% { transform: translateX(0) scale(1); }
 }
 
 /* 轻柔档的状态动画：保留节奏，去掉弹跳与位移幅度。 */
