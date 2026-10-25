@@ -73,16 +73,21 @@ const SCROLL_GAZE_POINTER_IDLE_MS = 2500
 const FLASH_MS = 2200
 
 /**
- * 身体剪影（viewBox 0 0 100 100）：圆润的胖椭圆——角色的基础形。
- * 路径绘制是为了免疫宿主对 border-radius 的干扰（实测被渲染成圆角方块）。
+ * 身体剪影（viewBox 0 0 100 100）：软糖团子——近乎正圆、比水滴更敦实的
+ * 胖 blobs。路径绘制是为了免疫宿主对 border-radius 的干扰（实测被渲染成
+ * 圆角方块）。
  */
-const DROP_PATH = 'M 50 6 C 73.2 6 92 23.9 92 46 C 92 68.1 73.2 86 50 86 C 26.8 86 8 68.1 8 46 C 8 23.9 26.8 6 50 6 Z'
+const DROP_PATH = 'M 50 5 C 77 5 98 23.5 98 49 C 98 74.5 77 96 50 96 C 23 96 2 74.5 2 49 C 2 23.5 23 5 50 5 Z'
 
 /** 同一路径的 objectBoundingBox 版（坐标 0-1，供 clipPathUnits 消费）。 */
-const DROP_PATH_BB = 'M 0.5 0.06 C 0.732 0.06 0.92 0.239 0.92 0.46 C 0.92 0.681 0.732 0.86 0.5 0.86 C 0.268 0.86 0.08 0.681 0.08 0.46 C 0.08 0.239 0.268 0.06 0.5 0.06 Z'
+const DROP_PATH_BB = 'M 0.5 0.05 C 0.77 0.05 0.98 0.235 0.98 0.49 C 0.98 0.745 0.77 0.96 0.5 0.96 C 0.23 0.96 0.02 0.745 0.02 0.49 C 0.02 0.235 0.23 0.05 0.5 0.05 Z'
 
-/** 头顶呆毛：小水滴形，尖端朝右上、根部埋进头顶。独立路径，随状态换色。 */
-const TIP_PATH = 'M 69 -5 C 63.5 -1.5 56.5 3.5 54 9 C 51.8 14 54.5 18.6 59.5 19 C 64.5 19.4 67.8 15.8 67.5 10.5 C 67.3 6 68 -0.5 69 -5 Z'
+/**
+ * 头顶软瓣：圆润的豆瓣（旋转的椭圆），两端皆圆、没有尖端——软糖不是水滴。
+ * 旋转放在 <g> 的 attribute 上，呆毛自己的 CSS 动画（轻摆/垂落）叠加其上。
+ */
+const TIP_GROUP_ROTATE = 'rotate(32 66 -1)'
+const TIP_ELLIPSE = { cx: 66, cy: -1, rx: 9.2, ry: 13 } as const
 
 /** clipPath 的 id（body 的 clip-path 引用同文档内联 SVG；呆毛渐变 id 见组件 defs）。 */
 const DROP_CLIP_ID = 'rainbowspeak-drop'
@@ -725,43 +730,57 @@ export function PetRoot(props: PropsRuntime<'shell.overlay'>): React.ReactElemen
       >
         <span className={styles.motion} ref={motionRef}>
           <span className={styles.body}>
-            <span className={styles.sheen} />
-            <span className={styles.face}>
-              <span className={styles.eyeLeft}><span className={styles.pupil} /><span className={styles.glint} /><span className={styles.glintDot} /><span className={styles.dizzyX} aria-hidden="true" /></span>
-              <span className={styles.eyeRight}><span className={styles.pupil} /><span className={styles.glint} /><span className={styles.glintDot} /><span className={styles.dizzyX} aria-hidden="true" /></span>
-              <span className={styles.browLeft} />
-              <span className={styles.browRight} />
-              <span className={styles.blushLeft} />
-              <span className={styles.blushRight} />
-              <span className={styles.mouth}><span className={styles.tongue} /></span>
+            <span className={styles.bodyFill}>
+              <span className={styles.sheen} />
+              <span className={styles.face}>
+                <span className={styles.eyeLeft}><span className={styles.pupil} /><span className={styles.glint} /><span className={styles.glintDot} /><span className={styles.dizzyX} aria-hidden="true" /></span>
+                <span className={styles.eyeRight}><span className={styles.pupil} /><span className={styles.glint} /><span className={styles.glintDot} /><span className={styles.dizzyX} aria-hidden="true" /></span>
+                <span className={styles.browLeft} />
+                <span className={styles.browRight} />
+                <span className={styles.blushLeft} />
+                <span className={styles.blushRight} />
+                <span className={styles.mouth}><span className={styles.tongue} /></span>
+              </span>
             </span>
+            {/* 描边与呆毛是 .body 的孩子：跟随所有状态动画（倾斜/缩放不会脱节）。
+                描边贴软糖剪影走，呆毛是溢出头顶的圆瓣——软糖不是水滴。 */}
+            <svg className={styles.edgeSvg} viewBox="0 0 100 100" aria-hidden="true" focusable="false">
+              <path className={styles.dropEdge} d={DROP_PATH} vectorEffect="non-scaling-stroke" />
+              <path className={styles.dropEdgeInner} d={DROP_PATH} vectorEffect="non-scaling-stroke" />
+            </svg>
+            <svg className={styles.tipSvg} viewBox="0 0 100 100" aria-hidden="true" focusable="false">
+              <defs>
+                <clipPath id={DROP_CLIP_ID} clipPathUnits="objectBoundingBox">
+                  <path d={DROP_PATH_BB} />
+                </clipPath>
+                <linearGradient id="rainbowspeak-tip" x1="0.7" y1="0" x2="0.3" y2="1">
+                  <stop offset="0" stopColor="#ffd9d9" />
+                  <stop offset="0.48" stopColor="#ff9c9c" />
+                  <stop offset="1" stopColor="#ff6b6b" />
+                </linearGradient>
+                <linearGradient id="rainbowspeak-tip-amber" x1="0.7" y1="0" x2="0.3" y2="1">
+                  <stop offset="0" stopColor="#fef3c7" />
+                  <stop offset="0.48" stopColor="#fcd34d" />
+                  <stop offset="1" stopColor="#f59e0b" />
+                </linearGradient>
+                <linearGradient id="rainbowspeak-tip-red" x1="0.7" y1="0" x2="0.3" y2="1">
+                  <stop offset="0" stopColor="#fee2e2" />
+                  <stop offset="0.48" stopColor="#fca5a5" />
+                  <stop offset="1" stopColor="#ef4444" />
+                </linearGradient>
+              </defs>
+              <g transform={TIP_GROUP_ROTATE}>
+                <ellipse
+                  className={styles.tipFill}
+                  cx={TIP_ELLIPSE.cx}
+                  cy={TIP_ELLIPSE.cy}
+                  rx={TIP_ELLIPSE.rx}
+                  ry={TIP_ELLIPSE.ry}
+                  vectorEffect="non-scaling-stroke"
+                />
+              </g>
+            </svg>
           </span>
-          {/* 轮廓与呆毛画在身体之上：描边完整可见，呆毛根部压在头顶。 */}
-          <svg className={styles.dropShape} viewBox="0 0 100 100" aria-hidden="true" focusable="false">
-            <defs>
-              <clipPath id={DROP_CLIP_ID} clipPathUnits="objectBoundingBox">
-                <path d={DROP_PATH_BB} />
-              </clipPath>
-              <linearGradient id="rainbowspeak-tip" x1="0.7" y1="0" x2="0.3" y2="1">
-                <stop offset="0" stopColor="#ffd9d9" />
-                <stop offset="0.48" stopColor="#ff9c9c" />
-                <stop offset="1" stopColor="#ff6b6b" />
-              </linearGradient>
-              <linearGradient id="rainbowspeak-tip-amber" x1="0.7" y1="0" x2="0.3" y2="1">
-                <stop offset="0" stopColor="#fef3c7" />
-                <stop offset="0.48" stopColor="#fcd34d" />
-                <stop offset="1" stopColor="#f59e0b" />
-              </linearGradient>
-              <linearGradient id="rainbowspeak-tip-red" x1="0.7" y1="0" x2="0.3" y2="1">
-                <stop offset="0" stopColor="#fee2e2" />
-                <stop offset="0.48" stopColor="#fca5a5" />
-                <stop offset="1" stopColor="#ef4444" />
-              </linearGradient>
-            </defs>
-            <path className={styles.tipFill} d={TIP_PATH} vectorEffect="non-scaling-stroke" />
-            <path className={styles.dropEdge} d={DROP_PATH} vectorEffect="non-scaling-stroke" />
-            <path className={styles.dropEdgeInner} d={DROP_PATH} vectorEffect="non-scaling-stroke" />
-          </svg>
           <span className={styles.sweat} aria-hidden="true" />
         </span>
         <span className={styles.shock} key={pokeSeq} aria-hidden="true" />

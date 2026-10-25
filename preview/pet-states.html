@@ -5,20 +5,20 @@
 <title>小虹 · 六种表情预览</title>
 <style>
 /**
- * 桌宠「小虹」：纯 CSS + 内联 SVG 路径画的一只彩虹小水滴（圆身 + 呆毛）。
+ * 桌宠「小虹」：纯 CSS + 内联 SVG 画的一只彩虹软糖团子（圆身 + 头顶圆瓣）。
  *
  * 分层是有意的，因为三层的「谁拥有 transform」必须分清：
  * - `.motion` —— **JS 拥有**：挤压回弹、拖拽摆动（直接写 style）；
  * - `.body`  —— **CSS 拥有**：状态动画（呼吸 / 忙碌 / 庆祝 / 抖动 / 打盹）；
  * - `.eye`   —— 眨眼；`.pupil` 用 `--pet-look-x/y` 跟随指针。
  *
- * 剪影与呆毛都是 SVG 路径：身体是圆润的胖椭圆（clip-path 剪出），
- * 轮廓由 `.dropShape` 的描边负责（外圈深色勾形 + 内芯白色边光），
- * 头顶呆毛是独立的小水滴路径，随状态换色（粉/琥珀/红）。
- * 不用 border-radius 画主体——宿主环境会干扰它（实测被渲染成圆角
- * 方块），路径是几何精确的，谁也改不动。
+ * 剪影与圆瓣都是 SVG 几何：身体是近乎正圆的胖团子（clip-path 剪出），
+ * 轮廓由 `.edgeSvg` 的描边负责（外圈深色勾形 + 内芯白色边光），头顶是
+ * 一瓣旋转椭圆的圆豆——软糖不是水滴，没有尖端。描边与圆瓣都是 `.body`
+ * 的孩子，状态动画倾斜/缩放时跟着一起动。不用 border-radius 画主体——
+ * 宿主环境会干扰它（实测被渲染成圆角方块），路径是几何精确的。
  *
- * 质感按「玻璃水滴」叠层：`.sheen` 负责「光进了玻璃」（大高光 + 小星点
+ * 质感按「软糖」叠层：`.sheen` 负责「光进了糖体」（大高光 + 小星点
  * + 底部内阴影）。配色上角色本色（彩虹）是画作，固定不变；气泡与菜单
  * 走宿主 `--dsw-alias-*` 令牌，深浅主题自动跟随。
  */
@@ -74,13 +74,21 @@
   filter: drop-shadow(0 8px 16px light-dark(#0f111526, #00000059));
 }
 
-/* 水滴轮廓 SVG：与 .body 同框（inset 对齐 body 的 78% 方框）。
-   三笔：呆毛（渐变填充 + 细描边）、身体外圈深色勾形、内芯白色边光。
-   路径是几何精确的，宿主环境改不动它（border-radius 会被宿主样式
-   干扰成圆角方块，路径不会）。 */
-.dropShape {
+/* 身体填充层：彩虹 conic + 软糖剪影 clip。剪裁用 objectBoundingBox
+   单位的路径，任意尺寸等比缩放不变形。 */
+.bodyFill {
   position: absolute;
-  inset: 0 11% 22% 11%;
+  inset: 0;
+  clip-path: url(#rainbowspeak-drop);
+  background: conic-gradient(from -40deg, #ff6b6b, #ffa94d, #ffd43b, #51cf66, #339af0, #845ef7, #ff6b6b);
+}
+
+/* 描边与呆毛的画布：inset 0 即 .body 盒（viewBox 0-100 一一对应）。
+   两者都是 .body 的孩子——状态动画倾斜/缩放时跟着一起动，不再脱节。 */
+.edgeSvg,
+.tipSvg {
+  position: absolute;
+  inset: 0;
   overflow: visible;
   pointer-events: none;
 }
@@ -145,16 +153,14 @@
   animation: pet-aura 3.6s ease-in-out infinite;
 }
 
-/* 身体：彩虹 conic 填充 + SVG clip-path 圆润剪影。
-   剪裁用 objectBoundingBox 单位的路径，任意尺寸等比缩放不变形。 */
+/* 身体：定位与状态动画的载体；填充与剪影在 .bodyFill，描边/呆毛是
+   后面的 svg 兄弟——三层都随 .body 的 transform 一起动。 */
 .body {
   position: relative;
   display: block;
   width: 78%;
   height: 78%;
   margin: 0 auto 6%;
-  clip-path: url(#rainbowspeak-drop);
-  background: conic-gradient(from 0deg, #ff6b6b, #ffa94d, #ffd43b, #51cf66, #339af0, #845ef7, #ff6b6b);
   transform-origin: 50% 90%;
   will-change: transform;
 }
@@ -190,8 +196,8 @@
 .eyeRight {
   position: absolute;
   top: 38%;
-  width: 17%;
-  height: 21%;
+  width: 18%;
+  height: 22%;
   border-radius: 50%;
   background: radial-gradient(circle at 50% 32%, #ffffff 0%, rgba(255, 255, 255, 0.96) 62%, rgba(226, 232, 238, 0.94) 100%);
   box-shadow: inset 0 1.5px 2px rgba(15, 17, 21, 0.14);
@@ -212,9 +218,9 @@
   position: absolute;
   left: 50%;
   top: 50%;
-  width: 56%;
-  height: 56%;
-  margin: -28% 0 0 -28%;
+  width: 72%;
+  height: 72%;
+  margin: -36% 0 0 -36%;
   border-radius: 50%;
   background: radial-gradient(circle at 42% 36%, #3d454e 0%, light-dark(#1b1f24, #0b0d10) 62%);
   transform: translate(var(--pet-look-x), var(--pet-look-y));
@@ -256,7 +262,7 @@
   height: 3%;
   border-radius: 2px;
   background: light-dark(#1b1f24, #0b0d10);
-  opacity: 0.72;
+  opacity: 0.85;
   transition: transform 0.2s ease, opacity 0.2s ease;
 }
 
@@ -529,21 +535,9 @@
   --pet-aura: rgba(120, 170, 255, 0.18);
 }
 
-/* 干活：轻快的上下点头。
-   眼睛眯一点、瞳孔收一点——「专注」和待机的圆眼拉开差距。 */
+/* 干活：轻快的上下点头。圆眼不眯——专注感交给点头的节奏和眉毛。 */
 .pet[data-state='working'] .body {
   animation: pet-work 1.5s ease-in-out infinite;
-}
-
-.pet[data-state='working'] .eyeLeft,
-.pet[data-state='working'] .eyeRight {
-  height: 14%;
-}
-
-.pet[data-state='working'] .pupil {
-  width: 54%;
-  height: 54%;
-  margin: -27% 0 0 -27%;
 }
 
 .pet[data-state='working'] .aura {
@@ -566,10 +560,13 @@
   border-radius: 2px;
 }
 
-/* 等你：弹跳 + 竖瞳 + 挑眉。 */
+/* 等你：弹跳 + 大圆瞳 + 挑眉。 */
 .pet[data-state='waiting'] .body {
-  background: conic-gradient(from 0deg, #f59e0b, #fbbf24, #fcd34d, #f59e0b, #d97706, #f59e0b);
   animation: pet-wait 1.05s ease-in-out infinite;
+}
+
+.pet[data-state='waiting'] .bodyFill {
+  background: conic-gradient(from 0deg, #f59e0b, #fbbf24, #fcd34d, #f59e0b, #d97706, #f59e0b);
 }
 
 .pet[data-state='waiting'] .aura {
@@ -584,9 +581,9 @@
 }
 
 .pet[data-state='waiting'] .pupil {
-  width: 44%;
-  height: 72%;
-  margin: -36% 0 0 -22%;
+  width: 62%;
+  height: 82%;
+  margin: -41% 0 0 -31%;
 }
 
 .pet[data-state='waiting'] .glint,
@@ -689,8 +686,11 @@
 
 /* 出错：红色 + 抖动 + 汗滴 + 苦脸；呆毛也蔫了（情绪要连贯到每个部件）。 */
 .pet[data-state='error'] .body {
-  background: conic-gradient(from 0deg, #ef4444, #f87171, #fca5a5, #ef4444, #dc2626, #ef4444);
   animation: pet-shake 0.62s ease-out 1;
+}
+
+.pet[data-state='error'] .bodyFill {
+  background: conic-gradient(from 0deg, #ef4444, #f87171, #fca5a5, #ef4444, #dc2626, #ef4444);
 }
 
 .pet[data-state='error'] .aura {
@@ -699,8 +699,8 @@
 
 .pet[data-state='error'] .eyeLeft,
 .pet[data-state='error'] .eyeRight {
-  width: 13%;
-  height: 9%;
+  width: 14%;
+  height: 13%;
   animation: none;
 }
 
@@ -753,7 +753,8 @@
 
 .pet[data-state='sleeping'] .eyeLeft,
 .pet[data-state='sleeping'] .eyeRight {
-  height: 4%;
+  width: 15%;
+  height: 5%;
   top: 46%;
   animation: none;
   background: light-dark(#1b1f24, #0b0d10);
@@ -1178,42 +1179,46 @@ code { color: #999; }
   <button type="button" class="hit">
     <span class="motion">
       <span class="body">
-        <span class="sheen"></span>
-        <span class="face">
-          <span class="eyeLeft"><span class="pupil"></span><span class="glint"></span><span class="glintDot"></span><span class="dizzyX"></span></span>
-          <span class="eyeRight"><span class="pupil"></span><span class="glint"></span><span class="glintDot"></span><span class="dizzyX"></span></span>
-          <span class="browLeft"></span>
-          <span class="browRight"></span>
-          <span class="blushLeft"></span>
-          <span class="blushRight"></span>
-          <span class="mouth"><span class="tongue"></span></span>
+        <span class="bodyFill">
+          <span class="sheen"></span>
+          <span class="face">
+            <span class="eyeLeft"><span class="pupil"></span><span class="glint"></span><span class="glintDot"></span><span class="dizzyX"></span></span>
+            <span class="eyeRight"><span class="pupil"></span><span class="glint"></span><span class="glintDot"></span><span class="dizzyX"></span></span>
+            <span class="browLeft"></span>
+            <span class="browRight"></span>
+            <span class="blushLeft"></span>
+            <span class="blushRight"></span>
+            <span class="mouth"><span class="tongue"></span></span>
+          </span>
         </span>
+        <svg class="edgeSvg" viewBox="0 0 100 100" aria-hidden="true">
+          <path class="dropEdge" d="M 50 5 C 77 5 98 23.5 98 49 C 98 74.5 77 96 50 96 C 23 96 2 74.5 2 49 C 2 23.5 23 5 50 5 Z" vector-effect="non-scaling-stroke"></path>
+          <path class="dropEdgeInner" d="M 50 5 C 77 5 98 23.5 98 49 C 98 74.5 77 96 50 96 C 23 96 2 74.5 2 49 C 2 23.5 23 5 50 5 Z" vector-effect="non-scaling-stroke"></path>
+        </svg>
+        <svg class="tipSvg" viewBox="0 0 100 100" aria-hidden="true">
+          <defs>
+            <clipPath id="rainbowspeak-drop" clipPathUnits="objectBoundingBox">
+              <path d="M 0.5 0.05 C 0.77 0.05 0.98 0.235 0.98 0.49 C 0.98 0.745 0.77 0.96 0.5 0.96 C 0.23 0.96 0.02 0.745 0.02 0.49 C 0.02 0.235 0.23 0.05 0.5 0.05 Z"></path>
+            </clipPath>
+            <linearGradient id="rainbowspeak-tip" x1="0.7" y1="0" x2="0.3" y2="1">
+              <stop offset="0" stop-color="#ffd9d9"></stop>
+              <stop offset="0.48" stop-color="#ff9c9c"></stop>
+              <stop offset="1" stop-color="#ff6b6b"></stop>
+            </linearGradient>
+            <linearGradient id="rainbowspeak-tip-amber" x1="0.7" y1="0" x2="0.3" y2="1">
+              <stop offset="0" stop-color="#fef3c7"></stop>
+              <stop offset="0.48" stop-color="#fcd34d"></stop>
+              <stop offset="1" stop-color="#f59e0b"></stop>
+            </linearGradient>
+            <linearGradient id="rainbowspeak-tip-red" x1="0.7" y1="0" x2="0.3" y2="1">
+              <stop offset="0" stop-color="#fee2e2"></stop>
+              <stop offset="0.48" stop-color="#fca5a5"></stop>
+              <stop offset="1" stop-color="#ef4444"></stop>
+            </linearGradient>
+          </defs>
+          <g transform="rotate(32 66 -1)"><ellipse class="tipFill" cx="66" cy="-1" rx="9.2" ry="13" vector-effect="non-scaling-stroke"></ellipse></g>
+        </svg>
       </span>
-      <svg class="dropShape" viewBox="0 0 100 100" aria-hidden="true">
-        <defs>
-          <clipPath id="rainbowspeak-drop" clipPathUnits="objectBoundingBox">
-            <path d="M 0.5 0.06 C 0.732 0.06 0.92 0.239 0.92 0.46 C 0.92 0.681 0.732 0.86 0.5 0.86 C 0.268 0.86 0.08 0.681 0.08 0.46 C 0.08 0.239 0.268 0.06 0.5 0.06 Z"></path>
-          </clipPath>
-          <linearGradient id="rainbowspeak-tip" x1="0.7" y1="0" x2="0.3" y2="1">
-            <stop offset="0" stop-color="#ffd9d9"></stop>
-            <stop offset="0.48" stop-color="#ff9c9c"></stop>
-            <stop offset="1" stop-color="#ff6b6b"></stop>
-          </linearGradient>
-          <linearGradient id="rainbowspeak-tip-amber" x1="0.7" y1="0" x2="0.3" y2="1">
-            <stop offset="0" stop-color="#fef3c7"></stop>
-            <stop offset="0.48" stop-color="#fcd34d"></stop>
-            <stop offset="1" stop-color="#f59e0b"></stop>
-          </linearGradient>
-          <linearGradient id="rainbowspeak-tip-red" x1="0.7" y1="0" x2="0.3" y2="1">
-            <stop offset="0" stop-color="#fee2e2"></stop>
-            <stop offset="0.48" stop-color="#fca5a5"></stop>
-            <stop offset="1" stop-color="#ef4444"></stop>
-          </linearGradient>
-        </defs>
-        <path class="tipFill" d="M 69 -5 C 63.5 -1.5 56.5 3.5 54 9 C 51.8 14 54.5 18.6 59.5 19 C 64.5 19.4 67.8 15.8 67.5 10.5 C 67.3 6 68 -0.5 69 -5 Z" vector-effect="non-scaling-stroke"></path>
-        <path class="dropEdge" d="M 50 6 C 73.2 6 92 23.9 92 46 C 92 68.1 73.2 86 50 86 C 26.8 86 8 68.1 8 46 C 8 23.9 26.8 6 50 6 Z" vector-effect="non-scaling-stroke"></path>
-        <path class="dropEdgeInner" d="M 50 6 C 73.2 6 92 23.9 92 46 C 92 68.1 73.2 86 50 86 C 26.8 86 8 68.1 8 46 C 8 23.9 26.8 6 50 6 Z" vector-effect="non-scaling-stroke"></path>
-      </svg>
       <span class="sweat"></span>
     </span>
     <span class="shock"></span>
@@ -1228,42 +1233,46 @@ code { color: #999; }
   <button type="button" class="hit">
     <span class="motion">
       <span class="body">
-        <span class="sheen"></span>
-        <span class="face">
-          <span class="eyeLeft"><span class="pupil"></span><span class="glint"></span><span class="glintDot"></span><span class="dizzyX"></span></span>
-          <span class="eyeRight"><span class="pupil"></span><span class="glint"></span><span class="glintDot"></span><span class="dizzyX"></span></span>
-          <span class="browLeft"></span>
-          <span class="browRight"></span>
-          <span class="blushLeft"></span>
-          <span class="blushRight"></span>
-          <span class="mouth"><span class="tongue"></span></span>
+        <span class="bodyFill">
+          <span class="sheen"></span>
+          <span class="face">
+            <span class="eyeLeft"><span class="pupil"></span><span class="glint"></span><span class="glintDot"></span><span class="dizzyX"></span></span>
+            <span class="eyeRight"><span class="pupil"></span><span class="glint"></span><span class="glintDot"></span><span class="dizzyX"></span></span>
+            <span class="browLeft"></span>
+            <span class="browRight"></span>
+            <span class="blushLeft"></span>
+            <span class="blushRight"></span>
+            <span class="mouth"><span class="tongue"></span></span>
+          </span>
         </span>
+        <svg class="edgeSvg" viewBox="0 0 100 100" aria-hidden="true">
+          <path class="dropEdge" d="M 50 5 C 77 5 98 23.5 98 49 C 98 74.5 77 96 50 96 C 23 96 2 74.5 2 49 C 2 23.5 23 5 50 5 Z" vector-effect="non-scaling-stroke"></path>
+          <path class="dropEdgeInner" d="M 50 5 C 77 5 98 23.5 98 49 C 98 74.5 77 96 50 96 C 23 96 2 74.5 2 49 C 2 23.5 23 5 50 5 Z" vector-effect="non-scaling-stroke"></path>
+        </svg>
+        <svg class="tipSvg" viewBox="0 0 100 100" aria-hidden="true">
+          <defs>
+            <clipPath id="rainbowspeak-drop" clipPathUnits="objectBoundingBox">
+              <path d="M 0.5 0.05 C 0.77 0.05 0.98 0.235 0.98 0.49 C 0.98 0.745 0.77 0.96 0.5 0.96 C 0.23 0.96 0.02 0.745 0.02 0.49 C 0.02 0.235 0.23 0.05 0.5 0.05 Z"></path>
+            </clipPath>
+            <linearGradient id="rainbowspeak-tip" x1="0.7" y1="0" x2="0.3" y2="1">
+              <stop offset="0" stop-color="#ffd9d9"></stop>
+              <stop offset="0.48" stop-color="#ff9c9c"></stop>
+              <stop offset="1" stop-color="#ff6b6b"></stop>
+            </linearGradient>
+            <linearGradient id="rainbowspeak-tip-amber" x1="0.7" y1="0" x2="0.3" y2="1">
+              <stop offset="0" stop-color="#fef3c7"></stop>
+              <stop offset="0.48" stop-color="#fcd34d"></stop>
+              <stop offset="1" stop-color="#f59e0b"></stop>
+            </linearGradient>
+            <linearGradient id="rainbowspeak-tip-red" x1="0.7" y1="0" x2="0.3" y2="1">
+              <stop offset="0" stop-color="#fee2e2"></stop>
+              <stop offset="0.48" stop-color="#fca5a5"></stop>
+              <stop offset="1" stop-color="#ef4444"></stop>
+            </linearGradient>
+          </defs>
+          <g transform="rotate(32 66 -1)"><ellipse class="tipFill" cx="66" cy="-1" rx="9.2" ry="13" vector-effect="non-scaling-stroke"></ellipse></g>
+        </svg>
       </span>
-      <svg class="dropShape" viewBox="0 0 100 100" aria-hidden="true">
-        <defs>
-          <clipPath id="rainbowspeak-drop" clipPathUnits="objectBoundingBox">
-            <path d="M 0.5 0.06 C 0.732 0.06 0.92 0.239 0.92 0.46 C 0.92 0.681 0.732 0.86 0.5 0.86 C 0.268 0.86 0.08 0.681 0.08 0.46 C 0.08 0.239 0.268 0.06 0.5 0.06 Z"></path>
-          </clipPath>
-          <linearGradient id="rainbowspeak-tip" x1="0.7" y1="0" x2="0.3" y2="1">
-            <stop offset="0" stop-color="#ffd9d9"></stop>
-            <stop offset="0.48" stop-color="#ff9c9c"></stop>
-            <stop offset="1" stop-color="#ff6b6b"></stop>
-          </linearGradient>
-          <linearGradient id="rainbowspeak-tip-amber" x1="0.7" y1="0" x2="0.3" y2="1">
-            <stop offset="0" stop-color="#fef3c7"></stop>
-            <stop offset="0.48" stop-color="#fcd34d"></stop>
-            <stop offset="1" stop-color="#f59e0b"></stop>
-          </linearGradient>
-          <linearGradient id="rainbowspeak-tip-red" x1="0.7" y1="0" x2="0.3" y2="1">
-            <stop offset="0" stop-color="#fee2e2"></stop>
-            <stop offset="0.48" stop-color="#fca5a5"></stop>
-            <stop offset="1" stop-color="#ef4444"></stop>
-          </linearGradient>
-        </defs>
-        <path class="tipFill" d="M 69 -5 C 63.5 -1.5 56.5 3.5 54 9 C 51.8 14 54.5 18.6 59.5 19 C 64.5 19.4 67.8 15.8 67.5 10.5 C 67.3 6 68 -0.5 69 -5 Z" vector-effect="non-scaling-stroke"></path>
-        <path class="dropEdge" d="M 50 6 C 73.2 6 92 23.9 92 46 C 92 68.1 73.2 86 50 86 C 26.8 86 8 68.1 8 46 C 8 23.9 26.8 6 50 6 Z" vector-effect="non-scaling-stroke"></path>
-        <path class="dropEdgeInner" d="M 50 6 C 73.2 6 92 23.9 92 46 C 92 68.1 73.2 86 50 86 C 26.8 86 8 68.1 8 46 C 8 23.9 26.8 6 50 6 Z" vector-effect="non-scaling-stroke"></path>
-      </svg>
       <span class="sweat"></span>
     </span>
     <span class="shock"></span>
@@ -1278,42 +1287,46 @@ code { color: #999; }
   <button type="button" class="hit">
     <span class="motion">
       <span class="body">
-        <span class="sheen"></span>
-        <span class="face">
-          <span class="eyeLeft"><span class="pupil"></span><span class="glint"></span><span class="glintDot"></span><span class="dizzyX"></span></span>
-          <span class="eyeRight"><span class="pupil"></span><span class="glint"></span><span class="glintDot"></span><span class="dizzyX"></span></span>
-          <span class="browLeft"></span>
-          <span class="browRight"></span>
-          <span class="blushLeft"></span>
-          <span class="blushRight"></span>
-          <span class="mouth"><span class="tongue"></span></span>
+        <span class="bodyFill">
+          <span class="sheen"></span>
+          <span class="face">
+            <span class="eyeLeft"><span class="pupil"></span><span class="glint"></span><span class="glintDot"></span><span class="dizzyX"></span></span>
+            <span class="eyeRight"><span class="pupil"></span><span class="glint"></span><span class="glintDot"></span><span class="dizzyX"></span></span>
+            <span class="browLeft"></span>
+            <span class="browRight"></span>
+            <span class="blushLeft"></span>
+            <span class="blushRight"></span>
+            <span class="mouth"><span class="tongue"></span></span>
+          </span>
         </span>
+        <svg class="edgeSvg" viewBox="0 0 100 100" aria-hidden="true">
+          <path class="dropEdge" d="M 50 5 C 77 5 98 23.5 98 49 C 98 74.5 77 96 50 96 C 23 96 2 74.5 2 49 C 2 23.5 23 5 50 5 Z" vector-effect="non-scaling-stroke"></path>
+          <path class="dropEdgeInner" d="M 50 5 C 77 5 98 23.5 98 49 C 98 74.5 77 96 50 96 C 23 96 2 74.5 2 49 C 2 23.5 23 5 50 5 Z" vector-effect="non-scaling-stroke"></path>
+        </svg>
+        <svg class="tipSvg" viewBox="0 0 100 100" aria-hidden="true">
+          <defs>
+            <clipPath id="rainbowspeak-drop" clipPathUnits="objectBoundingBox">
+              <path d="M 0.5 0.05 C 0.77 0.05 0.98 0.235 0.98 0.49 C 0.98 0.745 0.77 0.96 0.5 0.96 C 0.23 0.96 0.02 0.745 0.02 0.49 C 0.02 0.235 0.23 0.05 0.5 0.05 Z"></path>
+            </clipPath>
+            <linearGradient id="rainbowspeak-tip" x1="0.7" y1="0" x2="0.3" y2="1">
+              <stop offset="0" stop-color="#ffd9d9"></stop>
+              <stop offset="0.48" stop-color="#ff9c9c"></stop>
+              <stop offset="1" stop-color="#ff6b6b"></stop>
+            </linearGradient>
+            <linearGradient id="rainbowspeak-tip-amber" x1="0.7" y1="0" x2="0.3" y2="1">
+              <stop offset="0" stop-color="#fef3c7"></stop>
+              <stop offset="0.48" stop-color="#fcd34d"></stop>
+              <stop offset="1" stop-color="#f59e0b"></stop>
+            </linearGradient>
+            <linearGradient id="rainbowspeak-tip-red" x1="0.7" y1="0" x2="0.3" y2="1">
+              <stop offset="0" stop-color="#fee2e2"></stop>
+              <stop offset="0.48" stop-color="#fca5a5"></stop>
+              <stop offset="1" stop-color="#ef4444"></stop>
+            </linearGradient>
+          </defs>
+          <g transform="rotate(32 66 -1)"><ellipse class="tipFill" cx="66" cy="-1" rx="9.2" ry="13" vector-effect="non-scaling-stroke"></ellipse></g>
+        </svg>
       </span>
-      <svg class="dropShape" viewBox="0 0 100 100" aria-hidden="true">
-        <defs>
-          <clipPath id="rainbowspeak-drop" clipPathUnits="objectBoundingBox">
-            <path d="M 0.5 0.06 C 0.732 0.06 0.92 0.239 0.92 0.46 C 0.92 0.681 0.732 0.86 0.5 0.86 C 0.268 0.86 0.08 0.681 0.08 0.46 C 0.08 0.239 0.268 0.06 0.5 0.06 Z"></path>
-          </clipPath>
-          <linearGradient id="rainbowspeak-tip" x1="0.7" y1="0" x2="0.3" y2="1">
-            <stop offset="0" stop-color="#ffd9d9"></stop>
-            <stop offset="0.48" stop-color="#ff9c9c"></stop>
-            <stop offset="1" stop-color="#ff6b6b"></stop>
-          </linearGradient>
-          <linearGradient id="rainbowspeak-tip-amber" x1="0.7" y1="0" x2="0.3" y2="1">
-            <stop offset="0" stop-color="#fef3c7"></stop>
-            <stop offset="0.48" stop-color="#fcd34d"></stop>
-            <stop offset="1" stop-color="#f59e0b"></stop>
-          </linearGradient>
-          <linearGradient id="rainbowspeak-tip-red" x1="0.7" y1="0" x2="0.3" y2="1">
-            <stop offset="0" stop-color="#fee2e2"></stop>
-            <stop offset="0.48" stop-color="#fca5a5"></stop>
-            <stop offset="1" stop-color="#ef4444"></stop>
-          </linearGradient>
-        </defs>
-        <path class="tipFill" d="M 69 -5 C 63.5 -1.5 56.5 3.5 54 9 C 51.8 14 54.5 18.6 59.5 19 C 64.5 19.4 67.8 15.8 67.5 10.5 C 67.3 6 68 -0.5 69 -5 Z" vector-effect="non-scaling-stroke"></path>
-        <path class="dropEdge" d="M 50 6 C 73.2 6 92 23.9 92 46 C 92 68.1 73.2 86 50 86 C 26.8 86 8 68.1 8 46 C 8 23.9 26.8 6 50 6 Z" vector-effect="non-scaling-stroke"></path>
-        <path class="dropEdgeInner" d="M 50 6 C 73.2 6 92 23.9 92 46 C 92 68.1 73.2 86 50 86 C 26.8 86 8 68.1 8 46 C 8 23.9 26.8 6 50 6 Z" vector-effect="non-scaling-stroke"></path>
-      </svg>
       <span class="sweat"></span>
     </span>
     <span class="shock"></span>
@@ -1328,42 +1341,46 @@ code { color: #999; }
   <button type="button" class="hit">
     <span class="motion">
       <span class="body">
-        <span class="sheen"></span>
-        <span class="face">
-          <span class="eyeLeft"><span class="pupil"></span><span class="glint"></span><span class="glintDot"></span><span class="dizzyX"></span></span>
-          <span class="eyeRight"><span class="pupil"></span><span class="glint"></span><span class="glintDot"></span><span class="dizzyX"></span></span>
-          <span class="browLeft"></span>
-          <span class="browRight"></span>
-          <span class="blushLeft"></span>
-          <span class="blushRight"></span>
-          <span class="mouth"><span class="tongue"></span></span>
+        <span class="bodyFill">
+          <span class="sheen"></span>
+          <span class="face">
+            <span class="eyeLeft"><span class="pupil"></span><span class="glint"></span><span class="glintDot"></span><span class="dizzyX"></span></span>
+            <span class="eyeRight"><span class="pupil"></span><span class="glint"></span><span class="glintDot"></span><span class="dizzyX"></span></span>
+            <span class="browLeft"></span>
+            <span class="browRight"></span>
+            <span class="blushLeft"></span>
+            <span class="blushRight"></span>
+            <span class="mouth"><span class="tongue"></span></span>
+          </span>
         </span>
+        <svg class="edgeSvg" viewBox="0 0 100 100" aria-hidden="true">
+          <path class="dropEdge" d="M 50 5 C 77 5 98 23.5 98 49 C 98 74.5 77 96 50 96 C 23 96 2 74.5 2 49 C 2 23.5 23 5 50 5 Z" vector-effect="non-scaling-stroke"></path>
+          <path class="dropEdgeInner" d="M 50 5 C 77 5 98 23.5 98 49 C 98 74.5 77 96 50 96 C 23 96 2 74.5 2 49 C 2 23.5 23 5 50 5 Z" vector-effect="non-scaling-stroke"></path>
+        </svg>
+        <svg class="tipSvg" viewBox="0 0 100 100" aria-hidden="true">
+          <defs>
+            <clipPath id="rainbowspeak-drop" clipPathUnits="objectBoundingBox">
+              <path d="M 0.5 0.05 C 0.77 0.05 0.98 0.235 0.98 0.49 C 0.98 0.745 0.77 0.96 0.5 0.96 C 0.23 0.96 0.02 0.745 0.02 0.49 C 0.02 0.235 0.23 0.05 0.5 0.05 Z"></path>
+            </clipPath>
+            <linearGradient id="rainbowspeak-tip" x1="0.7" y1="0" x2="0.3" y2="1">
+              <stop offset="0" stop-color="#ffd9d9"></stop>
+              <stop offset="0.48" stop-color="#ff9c9c"></stop>
+              <stop offset="1" stop-color="#ff6b6b"></stop>
+            </linearGradient>
+            <linearGradient id="rainbowspeak-tip-amber" x1="0.7" y1="0" x2="0.3" y2="1">
+              <stop offset="0" stop-color="#fef3c7"></stop>
+              <stop offset="0.48" stop-color="#fcd34d"></stop>
+              <stop offset="1" stop-color="#f59e0b"></stop>
+            </linearGradient>
+            <linearGradient id="rainbowspeak-tip-red" x1="0.7" y1="0" x2="0.3" y2="1">
+              <stop offset="0" stop-color="#fee2e2"></stop>
+              <stop offset="0.48" stop-color="#fca5a5"></stop>
+              <stop offset="1" stop-color="#ef4444"></stop>
+            </linearGradient>
+          </defs>
+          <g transform="rotate(32 66 -1)"><ellipse class="tipFill" cx="66" cy="-1" rx="9.2" ry="13" vector-effect="non-scaling-stroke"></ellipse></g>
+        </svg>
       </span>
-      <svg class="dropShape" viewBox="0 0 100 100" aria-hidden="true">
-        <defs>
-          <clipPath id="rainbowspeak-drop" clipPathUnits="objectBoundingBox">
-            <path d="M 0.5 0.06 C 0.732 0.06 0.92 0.239 0.92 0.46 C 0.92 0.681 0.732 0.86 0.5 0.86 C 0.268 0.86 0.08 0.681 0.08 0.46 C 0.08 0.239 0.268 0.06 0.5 0.06 Z"></path>
-          </clipPath>
-          <linearGradient id="rainbowspeak-tip" x1="0.7" y1="0" x2="0.3" y2="1">
-            <stop offset="0" stop-color="#ffd9d9"></stop>
-            <stop offset="0.48" stop-color="#ff9c9c"></stop>
-            <stop offset="1" stop-color="#ff6b6b"></stop>
-          </linearGradient>
-          <linearGradient id="rainbowspeak-tip-amber" x1="0.7" y1="0" x2="0.3" y2="1">
-            <stop offset="0" stop-color="#fef3c7"></stop>
-            <stop offset="0.48" stop-color="#fcd34d"></stop>
-            <stop offset="1" stop-color="#f59e0b"></stop>
-          </linearGradient>
-          <linearGradient id="rainbowspeak-tip-red" x1="0.7" y1="0" x2="0.3" y2="1">
-            <stop offset="0" stop-color="#fee2e2"></stop>
-            <stop offset="0.48" stop-color="#fca5a5"></stop>
-            <stop offset="1" stop-color="#ef4444"></stop>
-          </linearGradient>
-        </defs>
-        <path class="tipFill" d="M 69 -5 C 63.5 -1.5 56.5 3.5 54 9 C 51.8 14 54.5 18.6 59.5 19 C 64.5 19.4 67.8 15.8 67.5 10.5 C 67.3 6 68 -0.5 69 -5 Z" vector-effect="non-scaling-stroke"></path>
-        <path class="dropEdge" d="M 50 6 C 73.2 6 92 23.9 92 46 C 92 68.1 73.2 86 50 86 C 26.8 86 8 68.1 8 46 C 8 23.9 26.8 6 50 6 Z" vector-effect="non-scaling-stroke"></path>
-        <path class="dropEdgeInner" d="M 50 6 C 73.2 6 92 23.9 92 46 C 92 68.1 73.2 86 50 86 C 26.8 86 8 68.1 8 46 C 8 23.9 26.8 6 50 6 Z" vector-effect="non-scaling-stroke"></path>
-      </svg>
       <span class="sweat"></span>
     </span>
     <span class="shock"></span>
@@ -1378,42 +1395,46 @@ code { color: #999; }
   <button type="button" class="hit">
     <span class="motion">
       <span class="body">
-        <span class="sheen"></span>
-        <span class="face">
-          <span class="eyeLeft"><span class="pupil"></span><span class="glint"></span><span class="glintDot"></span><span class="dizzyX"></span></span>
-          <span class="eyeRight"><span class="pupil"></span><span class="glint"></span><span class="glintDot"></span><span class="dizzyX"></span></span>
-          <span class="browLeft"></span>
-          <span class="browRight"></span>
-          <span class="blushLeft"></span>
-          <span class="blushRight"></span>
-          <span class="mouth"><span class="tongue"></span></span>
+        <span class="bodyFill">
+          <span class="sheen"></span>
+          <span class="face">
+            <span class="eyeLeft"><span class="pupil"></span><span class="glint"></span><span class="glintDot"></span><span class="dizzyX"></span></span>
+            <span class="eyeRight"><span class="pupil"></span><span class="glint"></span><span class="glintDot"></span><span class="dizzyX"></span></span>
+            <span class="browLeft"></span>
+            <span class="browRight"></span>
+            <span class="blushLeft"></span>
+            <span class="blushRight"></span>
+            <span class="mouth"><span class="tongue"></span></span>
+          </span>
         </span>
+        <svg class="edgeSvg" viewBox="0 0 100 100" aria-hidden="true">
+          <path class="dropEdge" d="M 50 5 C 77 5 98 23.5 98 49 C 98 74.5 77 96 50 96 C 23 96 2 74.5 2 49 C 2 23.5 23 5 50 5 Z" vector-effect="non-scaling-stroke"></path>
+          <path class="dropEdgeInner" d="M 50 5 C 77 5 98 23.5 98 49 C 98 74.5 77 96 50 96 C 23 96 2 74.5 2 49 C 2 23.5 23 5 50 5 Z" vector-effect="non-scaling-stroke"></path>
+        </svg>
+        <svg class="tipSvg" viewBox="0 0 100 100" aria-hidden="true">
+          <defs>
+            <clipPath id="rainbowspeak-drop" clipPathUnits="objectBoundingBox">
+              <path d="M 0.5 0.05 C 0.77 0.05 0.98 0.235 0.98 0.49 C 0.98 0.745 0.77 0.96 0.5 0.96 C 0.23 0.96 0.02 0.745 0.02 0.49 C 0.02 0.235 0.23 0.05 0.5 0.05 Z"></path>
+            </clipPath>
+            <linearGradient id="rainbowspeak-tip" x1="0.7" y1="0" x2="0.3" y2="1">
+              <stop offset="0" stop-color="#ffd9d9"></stop>
+              <stop offset="0.48" stop-color="#ff9c9c"></stop>
+              <stop offset="1" stop-color="#ff6b6b"></stop>
+            </linearGradient>
+            <linearGradient id="rainbowspeak-tip-amber" x1="0.7" y1="0" x2="0.3" y2="1">
+              <stop offset="0" stop-color="#fef3c7"></stop>
+              <stop offset="0.48" stop-color="#fcd34d"></stop>
+              <stop offset="1" stop-color="#f59e0b"></stop>
+            </linearGradient>
+            <linearGradient id="rainbowspeak-tip-red" x1="0.7" y1="0" x2="0.3" y2="1">
+              <stop offset="0" stop-color="#fee2e2"></stop>
+              <stop offset="0.48" stop-color="#fca5a5"></stop>
+              <stop offset="1" stop-color="#ef4444"></stop>
+            </linearGradient>
+          </defs>
+          <g transform="rotate(32 66 -1)"><ellipse class="tipFill" cx="66" cy="-1" rx="9.2" ry="13" vector-effect="non-scaling-stroke"></ellipse></g>
+        </svg>
       </span>
-      <svg class="dropShape" viewBox="0 0 100 100" aria-hidden="true">
-        <defs>
-          <clipPath id="rainbowspeak-drop" clipPathUnits="objectBoundingBox">
-            <path d="M 0.5 0.06 C 0.732 0.06 0.92 0.239 0.92 0.46 C 0.92 0.681 0.732 0.86 0.5 0.86 C 0.268 0.86 0.08 0.681 0.08 0.46 C 0.08 0.239 0.268 0.06 0.5 0.06 Z"></path>
-          </clipPath>
-          <linearGradient id="rainbowspeak-tip" x1="0.7" y1="0" x2="0.3" y2="1">
-            <stop offset="0" stop-color="#ffd9d9"></stop>
-            <stop offset="0.48" stop-color="#ff9c9c"></stop>
-            <stop offset="1" stop-color="#ff6b6b"></stop>
-          </linearGradient>
-          <linearGradient id="rainbowspeak-tip-amber" x1="0.7" y1="0" x2="0.3" y2="1">
-            <stop offset="0" stop-color="#fef3c7"></stop>
-            <stop offset="0.48" stop-color="#fcd34d"></stop>
-            <stop offset="1" stop-color="#f59e0b"></stop>
-          </linearGradient>
-          <linearGradient id="rainbowspeak-tip-red" x1="0.7" y1="0" x2="0.3" y2="1">
-            <stop offset="0" stop-color="#fee2e2"></stop>
-            <stop offset="0.48" stop-color="#fca5a5"></stop>
-            <stop offset="1" stop-color="#ef4444"></stop>
-          </linearGradient>
-        </defs>
-        <path class="tipFill" d="M 69 -5 C 63.5 -1.5 56.5 3.5 54 9 C 51.8 14 54.5 18.6 59.5 19 C 64.5 19.4 67.8 15.8 67.5 10.5 C 67.3 6 68 -0.5 69 -5 Z" vector-effect="non-scaling-stroke"></path>
-        <path class="dropEdge" d="M 50 6 C 73.2 6 92 23.9 92 46 C 92 68.1 73.2 86 50 86 C 26.8 86 8 68.1 8 46 C 8 23.9 26.8 6 50 6 Z" vector-effect="non-scaling-stroke"></path>
-        <path class="dropEdgeInner" d="M 50 6 C 73.2 6 92 23.9 92 46 C 92 68.1 73.2 86 50 86 C 26.8 86 8 68.1 8 46 C 8 23.9 26.8 6 50 6 Z" vector-effect="non-scaling-stroke"></path>
-      </svg>
       <span class="sweat"></span>
     </span>
     <span class="shock"></span>
@@ -1428,42 +1449,46 @@ code { color: #999; }
   <button type="button" class="hit">
     <span class="motion">
       <span class="body">
-        <span class="sheen"></span>
-        <span class="face">
-          <span class="eyeLeft"><span class="pupil"></span><span class="glint"></span><span class="glintDot"></span><span class="dizzyX"></span></span>
-          <span class="eyeRight"><span class="pupil"></span><span class="glint"></span><span class="glintDot"></span><span class="dizzyX"></span></span>
-          <span class="browLeft"></span>
-          <span class="browRight"></span>
-          <span class="blushLeft"></span>
-          <span class="blushRight"></span>
-          <span class="mouth"><span class="tongue"></span></span>
+        <span class="bodyFill">
+          <span class="sheen"></span>
+          <span class="face">
+            <span class="eyeLeft"><span class="pupil"></span><span class="glint"></span><span class="glintDot"></span><span class="dizzyX"></span></span>
+            <span class="eyeRight"><span class="pupil"></span><span class="glint"></span><span class="glintDot"></span><span class="dizzyX"></span></span>
+            <span class="browLeft"></span>
+            <span class="browRight"></span>
+            <span class="blushLeft"></span>
+            <span class="blushRight"></span>
+            <span class="mouth"><span class="tongue"></span></span>
+          </span>
         </span>
+        <svg class="edgeSvg" viewBox="0 0 100 100" aria-hidden="true">
+          <path class="dropEdge" d="M 50 5 C 77 5 98 23.5 98 49 C 98 74.5 77 96 50 96 C 23 96 2 74.5 2 49 C 2 23.5 23 5 50 5 Z" vector-effect="non-scaling-stroke"></path>
+          <path class="dropEdgeInner" d="M 50 5 C 77 5 98 23.5 98 49 C 98 74.5 77 96 50 96 C 23 96 2 74.5 2 49 C 2 23.5 23 5 50 5 Z" vector-effect="non-scaling-stroke"></path>
+        </svg>
+        <svg class="tipSvg" viewBox="0 0 100 100" aria-hidden="true">
+          <defs>
+            <clipPath id="rainbowspeak-drop" clipPathUnits="objectBoundingBox">
+              <path d="M 0.5 0.05 C 0.77 0.05 0.98 0.235 0.98 0.49 C 0.98 0.745 0.77 0.96 0.5 0.96 C 0.23 0.96 0.02 0.745 0.02 0.49 C 0.02 0.235 0.23 0.05 0.5 0.05 Z"></path>
+            </clipPath>
+            <linearGradient id="rainbowspeak-tip" x1="0.7" y1="0" x2="0.3" y2="1">
+              <stop offset="0" stop-color="#ffd9d9"></stop>
+              <stop offset="0.48" stop-color="#ff9c9c"></stop>
+              <stop offset="1" stop-color="#ff6b6b"></stop>
+            </linearGradient>
+            <linearGradient id="rainbowspeak-tip-amber" x1="0.7" y1="0" x2="0.3" y2="1">
+              <stop offset="0" stop-color="#fef3c7"></stop>
+              <stop offset="0.48" stop-color="#fcd34d"></stop>
+              <stop offset="1" stop-color="#f59e0b"></stop>
+            </linearGradient>
+            <linearGradient id="rainbowspeak-tip-red" x1="0.7" y1="0" x2="0.3" y2="1">
+              <stop offset="0" stop-color="#fee2e2"></stop>
+              <stop offset="0.48" stop-color="#fca5a5"></stop>
+              <stop offset="1" stop-color="#ef4444"></stop>
+            </linearGradient>
+          </defs>
+          <g transform="rotate(32 66 -1)"><ellipse class="tipFill" cx="66" cy="-1" rx="9.2" ry="13" vector-effect="non-scaling-stroke"></ellipse></g>
+        </svg>
       </span>
-      <svg class="dropShape" viewBox="0 0 100 100" aria-hidden="true">
-        <defs>
-          <clipPath id="rainbowspeak-drop" clipPathUnits="objectBoundingBox">
-            <path d="M 0.5 0.06 C 0.732 0.06 0.92 0.239 0.92 0.46 C 0.92 0.681 0.732 0.86 0.5 0.86 C 0.268 0.86 0.08 0.681 0.08 0.46 C 0.08 0.239 0.268 0.06 0.5 0.06 Z"></path>
-          </clipPath>
-          <linearGradient id="rainbowspeak-tip" x1="0.7" y1="0" x2="0.3" y2="1">
-            <stop offset="0" stop-color="#ffd9d9"></stop>
-            <stop offset="0.48" stop-color="#ff9c9c"></stop>
-            <stop offset="1" stop-color="#ff6b6b"></stop>
-          </linearGradient>
-          <linearGradient id="rainbowspeak-tip-amber" x1="0.7" y1="0" x2="0.3" y2="1">
-            <stop offset="0" stop-color="#fef3c7"></stop>
-            <stop offset="0.48" stop-color="#fcd34d"></stop>
-            <stop offset="1" stop-color="#f59e0b"></stop>
-          </linearGradient>
-          <linearGradient id="rainbowspeak-tip-red" x1="0.7" y1="0" x2="0.3" y2="1">
-            <stop offset="0" stop-color="#fee2e2"></stop>
-            <stop offset="0.48" stop-color="#fca5a5"></stop>
-            <stop offset="1" stop-color="#ef4444"></stop>
-          </linearGradient>
-        </defs>
-        <path class="tipFill" d="M 69 -5 C 63.5 -1.5 56.5 3.5 54 9 C 51.8 14 54.5 18.6 59.5 19 C 64.5 19.4 67.8 15.8 67.5 10.5 C 67.3 6 68 -0.5 69 -5 Z" vector-effect="non-scaling-stroke"></path>
-        <path class="dropEdge" d="M 50 6 C 73.2 6 92 23.9 92 46 C 92 68.1 73.2 86 50 86 C 26.8 86 8 68.1 8 46 C 8 23.9 26.8 6 50 6 Z" vector-effect="non-scaling-stroke"></path>
-        <path class="dropEdgeInner" d="M 50 6 C 73.2 6 92 23.9 92 46 C 92 68.1 73.2 86 50 86 C 26.8 86 8 68.1 8 46 C 8 23.9 26.8 6 50 6 Z" vector-effect="non-scaling-stroke"></path>
-      </svg>
       <span class="sweat"></span>
     </span>
     <span class="shock"></span>
@@ -1481,42 +1506,46 @@ code { color: #999; }
   <button type="button" class="hit">
     <span class="motion">
       <span class="body">
-        <span class="sheen"></span>
-        <span class="face">
-          <span class="eyeLeft"><span class="pupil"></span><span class="glint"></span><span class="glintDot"></span><span class="dizzyX"></span></span>
-          <span class="eyeRight"><span class="pupil"></span><span class="glint"></span><span class="glintDot"></span><span class="dizzyX"></span></span>
-          <span class="browLeft"></span>
-          <span class="browRight"></span>
-          <span class="blushLeft"></span>
-          <span class="blushRight"></span>
-          <span class="mouth"><span class="tongue"></span></span>
+        <span class="bodyFill">
+          <span class="sheen"></span>
+          <span class="face">
+            <span class="eyeLeft"><span class="pupil"></span><span class="glint"></span><span class="glintDot"></span><span class="dizzyX"></span></span>
+            <span class="eyeRight"><span class="pupil"></span><span class="glint"></span><span class="glintDot"></span><span class="dizzyX"></span></span>
+            <span class="browLeft"></span>
+            <span class="browRight"></span>
+            <span class="blushLeft"></span>
+            <span class="blushRight"></span>
+            <span class="mouth"><span class="tongue"></span></span>
+          </span>
         </span>
+        <svg class="edgeSvg" viewBox="0 0 100 100" aria-hidden="true">
+          <path class="dropEdge" d="M 50 5 C 77 5 98 23.5 98 49 C 98 74.5 77 96 50 96 C 23 96 2 74.5 2 49 C 2 23.5 23 5 50 5 Z" vector-effect="non-scaling-stroke"></path>
+          <path class="dropEdgeInner" d="M 50 5 C 77 5 98 23.5 98 49 C 98 74.5 77 96 50 96 C 23 96 2 74.5 2 49 C 2 23.5 23 5 50 5 Z" vector-effect="non-scaling-stroke"></path>
+        </svg>
+        <svg class="tipSvg" viewBox="0 0 100 100" aria-hidden="true">
+          <defs>
+            <clipPath id="rainbowspeak-drop" clipPathUnits="objectBoundingBox">
+              <path d="M 0.5 0.05 C 0.77 0.05 0.98 0.235 0.98 0.49 C 0.98 0.745 0.77 0.96 0.5 0.96 C 0.23 0.96 0.02 0.745 0.02 0.49 C 0.02 0.235 0.23 0.05 0.5 0.05 Z"></path>
+            </clipPath>
+            <linearGradient id="rainbowspeak-tip" x1="0.7" y1="0" x2="0.3" y2="1">
+              <stop offset="0" stop-color="#ffd9d9"></stop>
+              <stop offset="0.48" stop-color="#ff9c9c"></stop>
+              <stop offset="1" stop-color="#ff6b6b"></stop>
+            </linearGradient>
+            <linearGradient id="rainbowspeak-tip-amber" x1="0.7" y1="0" x2="0.3" y2="1">
+              <stop offset="0" stop-color="#fef3c7"></stop>
+              <stop offset="0.48" stop-color="#fcd34d"></stop>
+              <stop offset="1" stop-color="#f59e0b"></stop>
+            </linearGradient>
+            <linearGradient id="rainbowspeak-tip-red" x1="0.7" y1="0" x2="0.3" y2="1">
+              <stop offset="0" stop-color="#fee2e2"></stop>
+              <stop offset="0.48" stop-color="#fca5a5"></stop>
+              <stop offset="1" stop-color="#ef4444"></stop>
+            </linearGradient>
+          </defs>
+          <g transform="rotate(32 66 -1)"><ellipse class="tipFill" cx="66" cy="-1" rx="9.2" ry="13" vector-effect="non-scaling-stroke"></ellipse></g>
+        </svg>
       </span>
-      <svg class="dropShape" viewBox="0 0 100 100" aria-hidden="true">
-        <defs>
-          <clipPath id="rainbowspeak-drop" clipPathUnits="objectBoundingBox">
-            <path d="M 0.5 0.06 C 0.732 0.06 0.92 0.239 0.92 0.46 C 0.92 0.681 0.732 0.86 0.5 0.86 C 0.268 0.86 0.08 0.681 0.08 0.46 C 0.08 0.239 0.268 0.06 0.5 0.06 Z"></path>
-          </clipPath>
-          <linearGradient id="rainbowspeak-tip" x1="0.7" y1="0" x2="0.3" y2="1">
-            <stop offset="0" stop-color="#ffd9d9"></stop>
-            <stop offset="0.48" stop-color="#ff9c9c"></stop>
-            <stop offset="1" stop-color="#ff6b6b"></stop>
-          </linearGradient>
-          <linearGradient id="rainbowspeak-tip-amber" x1="0.7" y1="0" x2="0.3" y2="1">
-            <stop offset="0" stop-color="#fef3c7"></stop>
-            <stop offset="0.48" stop-color="#fcd34d"></stop>
-            <stop offset="1" stop-color="#f59e0b"></stop>
-          </linearGradient>
-          <linearGradient id="rainbowspeak-tip-red" x1="0.7" y1="0" x2="0.3" y2="1">
-            <stop offset="0" stop-color="#fee2e2"></stop>
-            <stop offset="0.48" stop-color="#fca5a5"></stop>
-            <stop offset="1" stop-color="#ef4444"></stop>
-          </linearGradient>
-        </defs>
-        <path class="tipFill" d="M 69 -5 C 63.5 -1.5 56.5 3.5 54 9 C 51.8 14 54.5 18.6 59.5 19 C 64.5 19.4 67.8 15.8 67.5 10.5 C 67.3 6 68 -0.5 69 -5 Z" vector-effect="non-scaling-stroke"></path>
-        <path class="dropEdge" d="M 50 6 C 73.2 6 92 23.9 92 46 C 92 68.1 73.2 86 50 86 C 26.8 86 8 68.1 8 46 C 8 23.9 26.8 6 50 6 Z" vector-effect="non-scaling-stroke"></path>
-        <path class="dropEdgeInner" d="M 50 6 C 73.2 6 92 23.9 92 46 C 92 68.1 73.2 86 50 86 C 26.8 86 8 68.1 8 46 C 8 23.9 26.8 6 50 6 Z" vector-effect="non-scaling-stroke"></path>
-      </svg>
       <span class="sweat"></span>
     </span>
     <span class="shock"></span>
@@ -1531,42 +1560,46 @@ code { color: #999; }
   <button type="button" class="hit">
     <span class="motion">
       <span class="body">
-        <span class="sheen"></span>
-        <span class="face">
-          <span class="eyeLeft"><span class="pupil"></span><span class="glint"></span><span class="glintDot"></span><span class="dizzyX"></span></span>
-          <span class="eyeRight"><span class="pupil"></span><span class="glint"></span><span class="glintDot"></span><span class="dizzyX"></span></span>
-          <span class="browLeft"></span>
-          <span class="browRight"></span>
-          <span class="blushLeft"></span>
-          <span class="blushRight"></span>
-          <span class="mouth"><span class="tongue"></span></span>
+        <span class="bodyFill">
+          <span class="sheen"></span>
+          <span class="face">
+            <span class="eyeLeft"><span class="pupil"></span><span class="glint"></span><span class="glintDot"></span><span class="dizzyX"></span></span>
+            <span class="eyeRight"><span class="pupil"></span><span class="glint"></span><span class="glintDot"></span><span class="dizzyX"></span></span>
+            <span class="browLeft"></span>
+            <span class="browRight"></span>
+            <span class="blushLeft"></span>
+            <span class="blushRight"></span>
+            <span class="mouth"><span class="tongue"></span></span>
+          </span>
         </span>
+        <svg class="edgeSvg" viewBox="0 0 100 100" aria-hidden="true">
+          <path class="dropEdge" d="M 50 5 C 77 5 98 23.5 98 49 C 98 74.5 77 96 50 96 C 23 96 2 74.5 2 49 C 2 23.5 23 5 50 5 Z" vector-effect="non-scaling-stroke"></path>
+          <path class="dropEdgeInner" d="M 50 5 C 77 5 98 23.5 98 49 C 98 74.5 77 96 50 96 C 23 96 2 74.5 2 49 C 2 23.5 23 5 50 5 Z" vector-effect="non-scaling-stroke"></path>
+        </svg>
+        <svg class="tipSvg" viewBox="0 0 100 100" aria-hidden="true">
+          <defs>
+            <clipPath id="rainbowspeak-drop" clipPathUnits="objectBoundingBox">
+              <path d="M 0.5 0.05 C 0.77 0.05 0.98 0.235 0.98 0.49 C 0.98 0.745 0.77 0.96 0.5 0.96 C 0.23 0.96 0.02 0.745 0.02 0.49 C 0.02 0.235 0.23 0.05 0.5 0.05 Z"></path>
+            </clipPath>
+            <linearGradient id="rainbowspeak-tip" x1="0.7" y1="0" x2="0.3" y2="1">
+              <stop offset="0" stop-color="#ffd9d9"></stop>
+              <stop offset="0.48" stop-color="#ff9c9c"></stop>
+              <stop offset="1" stop-color="#ff6b6b"></stop>
+            </linearGradient>
+            <linearGradient id="rainbowspeak-tip-amber" x1="0.7" y1="0" x2="0.3" y2="1">
+              <stop offset="0" stop-color="#fef3c7"></stop>
+              <stop offset="0.48" stop-color="#fcd34d"></stop>
+              <stop offset="1" stop-color="#f59e0b"></stop>
+            </linearGradient>
+            <linearGradient id="rainbowspeak-tip-red" x1="0.7" y1="0" x2="0.3" y2="1">
+              <stop offset="0" stop-color="#fee2e2"></stop>
+              <stop offset="0.48" stop-color="#fca5a5"></stop>
+              <stop offset="1" stop-color="#ef4444"></stop>
+            </linearGradient>
+          </defs>
+          <g transform="rotate(32 66 -1)"><ellipse class="tipFill" cx="66" cy="-1" rx="9.2" ry="13" vector-effect="non-scaling-stroke"></ellipse></g>
+        </svg>
       </span>
-      <svg class="dropShape" viewBox="0 0 100 100" aria-hidden="true">
-        <defs>
-          <clipPath id="rainbowspeak-drop" clipPathUnits="objectBoundingBox">
-            <path d="M 0.5 0.06 C 0.732 0.06 0.92 0.239 0.92 0.46 C 0.92 0.681 0.732 0.86 0.5 0.86 C 0.268 0.86 0.08 0.681 0.08 0.46 C 0.08 0.239 0.268 0.06 0.5 0.06 Z"></path>
-          </clipPath>
-          <linearGradient id="rainbowspeak-tip" x1="0.7" y1="0" x2="0.3" y2="1">
-            <stop offset="0" stop-color="#ffd9d9"></stop>
-            <stop offset="0.48" stop-color="#ff9c9c"></stop>
-            <stop offset="1" stop-color="#ff6b6b"></stop>
-          </linearGradient>
-          <linearGradient id="rainbowspeak-tip-amber" x1="0.7" y1="0" x2="0.3" y2="1">
-            <stop offset="0" stop-color="#fef3c7"></stop>
-            <stop offset="0.48" stop-color="#fcd34d"></stop>
-            <stop offset="1" stop-color="#f59e0b"></stop>
-          </linearGradient>
-          <linearGradient id="rainbowspeak-tip-red" x1="0.7" y1="0" x2="0.3" y2="1">
-            <stop offset="0" stop-color="#fee2e2"></stop>
-            <stop offset="0.48" stop-color="#fca5a5"></stop>
-            <stop offset="1" stop-color="#ef4444"></stop>
-          </linearGradient>
-        </defs>
-        <path class="tipFill" d="M 69 -5 C 63.5 -1.5 56.5 3.5 54 9 C 51.8 14 54.5 18.6 59.5 19 C 64.5 19.4 67.8 15.8 67.5 10.5 C 67.3 6 68 -0.5 69 -5 Z" vector-effect="non-scaling-stroke"></path>
-        <path class="dropEdge" d="M 50 6 C 73.2 6 92 23.9 92 46 C 92 68.1 73.2 86 50 86 C 26.8 86 8 68.1 8 46 C 8 23.9 26.8 6 50 6 Z" vector-effect="non-scaling-stroke"></path>
-        <path class="dropEdgeInner" d="M 50 6 C 73.2 6 92 23.9 92 46 C 92 68.1 73.2 86 50 86 C 26.8 86 8 68.1 8 46 C 8 23.9 26.8 6 50 6 Z" vector-effect="non-scaling-stroke"></path>
-      </svg>
       <span class="sweat"></span>
     </span>
     <span class="shock"></span>
