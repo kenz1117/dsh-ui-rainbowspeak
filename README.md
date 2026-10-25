@@ -29,6 +29,10 @@
   <img src="assets/07-pet-states.png" alt="小虹 — 六种表情：待机 / 干活 / 等你 / 庆祝 / 出错 / 打盹" width="80%">
 </div>
 
+<div align="center">
+  <img src="assets/pet-demo.gif" alt="小虹动画演示：六种状态 + 摸摸 / 转圈晕 / 踉跄 / 哼小曲 / 空降登场" width="80%">
+</div>
+
 ## ✨ 为什么选它
 
 ### 纯装饰，零侵入

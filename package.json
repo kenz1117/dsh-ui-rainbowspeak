@@ -1,7 +1,7 @@
 {
   "name": "@kenz1117/dsh-ui-rainbowspeak",
   "description": "RainbowSpeak (虹语) — rainbow marquee border for the DeepSeek Harness chat composer plus 小虹, a window-resident companion pet driven by the host's authoritative turn boundaries.",
-  "version": "0.2.0",
+  "version": "0.2.1",
   "keywords": [
     "deepseek-harness",
     "deepseek",

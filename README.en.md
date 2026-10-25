@@ -29,6 +29,10 @@
   <img src="assets/07-pet-states.png" alt="Prism — six moods: resting, working, waiting, celebrating, error, napping" width="80%">
 </div>
 
+<div align="center">
+  <img src="assets/pet-demo.gif" alt="Prism in motion: six moods plus a pat, a spin with ×_× eyes, a stumble, a hum, and a drop-in entrance" width="80%">
+</div>
+
 ## ✨ Why this one
 
 ### Pure decoration, zero intrusion
