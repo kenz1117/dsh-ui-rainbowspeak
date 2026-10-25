@@ -1,7 +1,7 @@
 {
   "name": "@kenz1117/dsh-ui-rainbowspeak",
-  "description": "RainbowSpeak (虹语) — rainbow marquee border for the DeepSeek Harness chat composer: a continuously flowing conic-gradient ring traced along the input card boundary.",
-  "version": "0.0.2",
+  "description": "RainbowSpeak (虹语) — rainbow marquee border for the DeepSeek Harness chat composer plus 小虹, a window-resident companion pet driven by the host's authoritative turn boundaries.",
+  "version": "0.1.0",
   "keywords": [
     "deepseek-harness",
     "deepseek",
@@ -12,6 +12,8 @@
     "rainbowspeak",
     "marquee",
     "decoration",
+    "desktop-pet",
+    "companion",
     "ui"
   ],
   "publishConfig": {
@@ -30,6 +32,12 @@
     "./client": {
       "default": "./lib/client.js"
     },
+    "./typert": {
+      "default": "./lib/typert.host.js"
+    },
+    "./remote": {
+      "default": "./lib/remote.js"
+    },
     "./src/*": "./src/*",
     "./package.json": "./package.json"
   },
@@ -44,10 +52,14 @@
     "client": {
       "inject": [
         "@deepseek-ai/dsh-client-locale",
+        "@deepseek-ai/dsh-api-gateway",
+        "@deepseek-ai/dsh-client-connection",
+        "@deepseek-ai/dsh-api-session-controller",
         "@deepseek-ai/dsh-client-ui-conversation",
         "@deepseek-ai/dsh-client-ui-renderer",
         "@deepseek-ai/dsh-client-ui-session",
-        "@deepseek-ai/dsh-client-ui-settings"
+        "@deepseek-ai/dsh-client-ui-settings",
+        "@deepseek-ai/dsh-client-ui-layout"
       ],
       "platform": "web"
     }
@@ -56,6 +68,7 @@
     "prepare": "node scripts/link-peers.mjs",
     "bundle": "tsdown",
     "watch": "tsdown --watch",
+    "preview": "node scripts/preview-pet.mjs",
     "test": "vitest run",
     "typecheck": "tsc --noEmit"
   },
@@ -66,8 +79,11 @@
   },
   "peerDependencies": {
     "@deepseek-ai/cordis": "*",
+    "@deepseek-ai/dsh-api-gateway": "*",
+    "@deepseek-ai/dsh-client-connection": "*",
     "@deepseek-ai/dsh-client-locale": "*",
     "@deepseek-ai/dsh-client-ui-conversation": "*",
+    "@deepseek-ai/dsh-client-ui-layout": "*",
     "@deepseek-ai/dsh-client-ui-primitives": "*",
     "@deepseek-ai/dsh-client-ui-renderer": "*",
     "@deepseek-ai/dsh-client-ui-session": "*",
@@ -81,7 +97,10 @@
     "lightningcss": "^1.32.0",
     "react": "^18.3.1",
     "tsdown": "^0.22.14",
-    "typescript": "^5.9.3",
+    "typescript": "^5.9.0",
     "vitest": "^4.1.11"
+  },
+  "dependencies": {
+    "zod": "^4.6.7"
   }
 }

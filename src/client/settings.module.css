@@ -132,3 +132,14 @@
   display: flex;
   justify-content: flex-end;
 }
+
+/* 分组小标题（桌面宠物）：左对齐、压低一档，留出上方的呼吸空间。 */
+.groupTitle {
+  display: block;
+  margin-top: 28px;
+  padding-top: 18px;
+  border-top: 1px solid var(--dsw-alias-border-l1);
+  font-size: 15px;
+  font-weight: 600;
+  color: var(--dsw-alias-label-primary);
+}

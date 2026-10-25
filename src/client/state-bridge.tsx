@@ -13,6 +13,7 @@
 
 import { useEffect, useRef } from 'react'
 import type { PropsRuntime } from '@deepseek-ai/dsh-client-ui-slots'
+import { SESSION_EVENT } from './pet-state.ts'
 
 /** 桥接后的状态名（与样式表选择器对应）。 */
 export type RainbowState = 'idle' | 'running' | 'attention' | 'error'
@@ -55,9 +56,22 @@ export function effectiveState(attention: boolean, sessionState: Exclude<Rainbow
  */
 export function RainbowStateBridge(props: PropsRuntime<'conversation.composer.dock'>): null {
   const sessionState = props.useSession(rainbowStateOf)
-  const attention = props.useSessionPendingInteraction((map) => map.size > 0)
+  // 等待用户交互来自宿主投影的会话状态表（会话作用域下按当前会话取一条）。
+  const attention = props.useSessionStatus((map) => map.get(props.sessionId)?.pendingInteraction !== undefined)
   const prevRunningRef = useRef<boolean | null>(null)
   const celebrateTimerRef = useRef<number | null>(null)
+
+  // 发布当前会话身份：桌宠住在根作用域的覆盖层里，拿不到「当前选中会话」本身，
+  // 只能由会话作用域的这道桥把身份递过去。
+  useEffect(() => {
+    const root = document.documentElement
+    root.dataset.rainbowSession = props.sessionId
+    window.dispatchEvent(new CustomEvent(SESSION_EVENT, { detail: props.sessionId }))
+    return () => {
+      delete root.dataset.rainbowSession
+      window.dispatchEvent(new CustomEvent(SESSION_EVENT, { detail: undefined }))
+    }
+  }, [props.sessionId])
 
   // 状态合成与下发：error > attention > running > idle。
   useEffect(() => {

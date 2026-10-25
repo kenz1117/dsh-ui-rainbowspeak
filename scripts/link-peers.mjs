@@ -24,11 +24,16 @@ const LINKED_PACKAGES = [
   ['@deepseek-ai/dsh-client-locale', 'packages/client/locale'],
   ['@deepseek-ai/dsh-client-store', 'packages/client/store'],
   ['@deepseek-ai/dsh-client-ui-conversation', 'packages/client/ui-conversation'],
+  ['@deepseek-ai/dsh-client-ui-layout', 'packages/client/ui-layout'],
   ['@deepseek-ai/dsh-client-ui-primitives', 'packages/client/ui-primitives'],
   ['@deepseek-ai/dsh-client-ui-renderer', 'packages/client/ui-renderer'],
   ['@deepseek-ai/dsh-client-ui-session', 'packages/client/ui-session'],
   ['@deepseek-ai/dsh-client-ui-settings', 'packages/client/ui-settings'],
   ['@deepseek-ai/dsh-client-ui-slots', 'packages/client/ui-slots'],
+  ['@deepseek-ai/dsh-client-connection', 'packages/client/connection'],
+  ['@deepseek-ai/dsh-api-gateway', 'packages/api/gateway'],
+  ['@deepseek-ai/dsh-api-session-controller', 'packages/api/session-controller'],
+  ['@deepseek-ai/dsh-typert-protocol', 'packages/typert/protocol'],
 ]
 
 const scopeDir = join(repoRoot, 'node_modules', '@deepseek-ai')

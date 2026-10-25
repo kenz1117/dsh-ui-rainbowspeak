@@ -1,6 +1,9 @@
 # dsh-ui-rainbowspeak bundle patch：dsh plugin add @kenz1117/dsh-ui-rainbowspeak
-# 时以单条目插入 profile 根。行 id 指向本插件 node 半（纯载体，无宿主侧逻辑）；
-# 视觉效果由 client 半（lib/client.js）在浏览器注入样式表实现。
+# 时以单条目插入 profile 根。行 id 指向本插件 node 半：
+#   - 彩虹状态桥的宿主侧来源（会话座位与待交互座位）；
+#   - 桌宠的只读边界服务 rainbowPet（只投影回合边界元数据），
+#     并经 ./typert 子路径把契约贡献给 Typert 网关。
+# 视觉效果由 client 半（lib/client.js）在浏览器注入样式表 + 挂载 shell.overlay 实现。
 - insert:
     - id: ui-rainbowspeak
       name: '@kenz1117/dsh-ui-rainbowspeak'

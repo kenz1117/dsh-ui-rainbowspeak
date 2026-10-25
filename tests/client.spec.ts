@@ -12,11 +12,13 @@ function fakeCtx() {
   const locale = {
     register: () => () => {},
     bind: () => (key: string) => key,
+    subscribe: () => () => {},
   }
   return {
     disposers,
-    effect(factory: () => () => void, _label?: string) {
-      disposers.push(factory())
+    effect(factory: () => (() => void) | void, _label?: string) {
+      const disposer = factory()
+      if (typeof disposer === 'function') disposers.push(disposer)
       return { dispose: () => disposers.at(-1)?.() }
     },
     locale,
@@ -24,6 +26,8 @@ function fakeCtx() {
       inject: () => () => {},
       register: () => () => {},
     },
+    // 远端运行时缺席：子 fiber 静静等着（回调不触发），桌宠安静降级。
+    inject: () => () => {},
   } as never as Parameters<typeof apply>[0]
 }
 

@@ -34,6 +34,8 @@ import type {} from '@deepseek-ai/dsh-client-ui-renderer/client'
 import type {} from '@deepseek-ai/dsh-client-ui-settings/client'
 // Type-only: conversation.composer.dock 槽位的 SlotMap merge（ui-conversation 契约）。
 import type {} from '@deepseek-ai/dsh-client-ui-conversation/client'
+// Type-only: shell.overlay 槽位的 SlotMap merge（ui-layout 契约）——桌宠的落座处。
+import type {} from '@deepseek-ai/dsh-client-ui-layout/client'
 // Type-only: SessionStandardProps merge（useSession 席位类型）。
 import type {} from '@deepseek-ai/dsh-client-ui-session/client'
 // Type-only: LocaleNamespaceMap 声明合并目标（t 席位的键类型检查）。
@@ -43,6 +45,9 @@ import { RainbowSettingsSection } from './settings.tsx'
 import { NS, en, zh, type RainbowKey } from './locales.ts'
 import { applyPrefs, loadPrefs } from './preferences.ts'
 import { PALETTE_STOPS } from './palettes.ts'
+import { PetRoot } from './pet.tsx'
+import { startPetRemote } from './pet-remote.ts'
+import { bindPetLocale } from './pet-locale.ts'
 
 /** 词典键合并进宿主 LocaleNamespaceMap：t 席位按本插件命名空间做键类型检查。 */
 declare module '@deepseek-ai/dsh-client-ui-slots' {
@@ -193,6 +198,16 @@ export const inject = ['slots', 'locale']
  * @param ctx - client root context.
  */
 export function apply(ctx: Context): void {
+  try {
+    applyInner(ctx)
+  } catch (error) {
+    // 宿主只在启动汇总里报「entry failed」，不给原因——这里补一条可读的现场。
+    console.error('[dsh-ui-rainbowspeak] client apply failed', error)
+    throw error
+  }
+}
+
+function applyInner(ctx: Context): void {
   ctx.effect(() => {
     const tag = document.createElement('style')
     tag.dataset.plugin = PLUGIN_ID
@@ -231,4 +246,28 @@ export function apply(ctx: Context): void {
     id: 'rainbowspeak-state',
     order: 90,
   }, RainbowStateBridge))
+  // 桌宠：接上宿主的权威回合边界流（Typert 远端），再落座到窗口浮动层。
+  //
+  // 远端运行时（API Gateway）是**可选**依赖：Cordis 只允许在声明过的 inject 里
+  // 取服务，直接摸 `ctx.remote` 会抛 "cannot get property"。所以这里用子 fiber
+  // 声明 'remote'——网关缺席时子 fiber 静静等着，父插件照常激活，桌宠退回
+  // 「只看客户端会话状态」，只是不报喜（没有权威事件就不该报喜）。
+  ctx.inject(['remote'], (remoteScope) => {
+    remoteScope.effect(() => {
+      const handle = startPetRemote(remoteScope)
+      return () => { handle.dispose() }
+    }, 'ui-rainbowspeak: pet remote')
+  })
+  // 桌宠住在根作用域，拿不到 settings 注入的 t 席位，故单独接一条文案桥。
+  ctx.effect(() => {
+    const bound = t as unknown as (key: RainbowKey) => string
+    bindPetLocale(bound)
+    const off = ctx.locale.subscribe(() => { bindPetLocale(bound) })
+    return () => { off() }
+  }, 'ui-rainbowspeak: pet locale')
+  ctx.slots.inject('shell.overlay', () => ctx.slots.register({
+    name: 'shell.overlay',
+    id: 'rainbowspeak-pet',
+    order: 90,
+  }, PetRoot))
 }

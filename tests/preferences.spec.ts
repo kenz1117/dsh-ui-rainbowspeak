@@ -10,6 +10,8 @@ afterEach(() => {
   document.documentElement.removeAttribute('data-rainbow-palette')
   document.documentElement.removeAttribute('data-rainbow-side')
   document.documentElement.removeAttribute('data-rainbow-breathe')
+  document.documentElement.removeAttribute('data-pet-off')
+  document.documentElement.removeAttribute('data-pet-scope')
   document.documentElement.removeAttribute('style')
 })
 
@@ -31,6 +33,20 @@ describe('clampPrefs', () => {
     expect(clampPrefs({ palette: 'cyberpunk' }).palette).toBe('cyberpunk')
     expect(clampPrefs({ palette: 'theme' }).palette).toBe('theme')
   })
+
+  it('桌宠尺寸夹紧到 0.6-1.6，作用域非法回落默认', () => {
+    expect(clampPrefs({ petScale: 99 }).petScale).toBe(1.6)
+    expect(clampPrefs({ petScale: 0 }).petScale).toBe(0.6)
+    expect(clampPrefs({ petScale: 1.25 }).petScale).toBe(1.3)
+    expect(clampPrefs({ petScope: 'none' }).petScope).toBe('all')
+    expect(clampPrefs({ petScope: 'current' }).petScope).toBe('current')
+  })
+
+  it('桌宠坐标只接受有限数，畸形值回落默认落位', () => {
+    expect(clampPrefs({ petX: 12, petY: 34 }).petX).toBe(12)
+    expect(clampPrefs({ petX: 'left', petY: Number.NaN }).petX).toBeNull()
+    expect(clampPrefs({ petY: Number.POSITIVE_INFINITY }).petY).toBeNull()
+  })
 })
 
 describe('loadPrefs / savePrefs', () => {
@@ -49,7 +65,7 @@ describe('loadPrefs / savePrefs', () => {
 
 describe('applyPrefs', () => {
   it('布尔/枚举写 data 属性、数值写 CSS 变量、反向写 direction', () => {
-    applyPrefs({ enabled: false, periodSec: 2, widthPx: 5, palette: 'ocean', reverse: true, side: 'top', breathe: true })
+    applyPrefs({ ...DEFAULT_PREFS, enabled: false, periodSec: 2, widthPx: 5, palette: 'ocean', reverse: true, side: 'top', breathe: true })
     const root = document.documentElement
     expect(root.dataset.rainbowOff).toBe('1')
     expect(root.dataset.rainbowPalette).toBe('ocean')
@@ -65,5 +81,22 @@ describe('applyPrefs', () => {
     applyPrefs({ ...DEFAULT_PREFS, enabled: true, breathe: false })
     expect(document.documentElement.dataset.rainbowOff).toBeUndefined()
     expect(document.documentElement.dataset.rainbowBreathe).toBeUndefined()
+  })
+
+  it('桌宠偏好下发为 data-pet-* 与尺寸变量', () => {
+    applyPrefs({ ...DEFAULT_PREFS, petEnabled: false, petScope: 'current', petScale: 1.5 })
+    const root = document.documentElement
+    expect(root.dataset.petOff).toBe('1')
+    expect(root.dataset.petScope).toBe('current')
+    expect(root.getAttribute('style') ?? '').toContain('--dsh-pet-size: 156px')
+  })
+
+  it('下发偏好会广播变更事件（桌宠据此刷新）', () => {
+    const seen: unknown[] = []
+    const listener = (event: Event) => { seen.push((event as CustomEvent<unknown>).detail) }
+    window.addEventListener('dsh-ui-rainbowspeak:prefs', listener)
+    applyPrefs({ ...DEFAULT_PREFS, palette: 'ocean' })
+    window.removeEventListener('dsh-ui-rainbowspeak:prefs', listener)
+    expect(seen).toHaveLength(1)
   })
 })

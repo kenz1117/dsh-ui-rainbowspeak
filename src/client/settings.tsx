@@ -12,6 +12,7 @@ import styles from './settings.module.css'
 import { NS, type RainbowKey } from './locales.ts'
 import { DEFAULT_PREFS, loadPrefs, savePrefs, type RainbowPalette, type RainbowPrefs, type RainbowSide } from './preferences.ts'
 import { PALETTE_STOPS } from './palettes.ts'
+import type { PetScope } from './pet-state.ts'
 
 /** 配色方案的选项表（值 → 词典键；跟随主题殿后）。 */
 const PALETTE_OPTIONS: readonly { readonly value: RainbowPalette; readonly key: RainbowKey }[] = [
@@ -29,6 +30,12 @@ const SIDE_OPTIONS: readonly { readonly value: RainbowSide; readonly key: Rainbo
   { value: 'all', key: 'sideAll' },
   { value: 'top', key: 'sideTop' },
   { value: 'bottom', key: 'sideBottom' },
+]
+
+/** 桌宠关注范围的选项表（值 → 词典键）。 */
+const PET_SCOPE_OPTIONS: readonly { readonly value: PetScope; readonly key: RainbowKey }[] = [
+  { value: 'all', key: 'petScopeAll' },
+  { value: 'current', key: 'petScopeCurrent' },
 ]
 
 /**
@@ -173,6 +180,58 @@ export function RainbowSettingsSection({ t }: PropsLocale<typeof NS>): React.Rea
         >
           {t('reset')}
         </button>
+      </div>
+
+      <span className={styles.groupTitle}>{t('petNav')}</span>
+
+      <div className={styles.row}>
+        <div className={styles.rowText}>
+          <span className={styles.label}>{t('petEnable')}</span>
+          <span className={styles.desc}>{t('petEnableDesc')}</span>
+        </div>
+        <Switch
+          checked={prefs.petEnabled}
+          label={t('petEnable')}
+          onChange={(next) => { update(prefs, { petEnabled: next }, commit) }}
+        />
+      </div>
+
+      <div className={styles.row}>
+        <div className={styles.rowText}>
+          <span className={styles.label}>{t('petScope')}</span>
+          <span className={styles.desc}>{t('petScopeNote')}</span>
+        </div>
+        <div className={styles.chipRow}>
+          {PET_SCOPE_OPTIONS.map((option) => (
+            <button
+              key={option.value}
+              type="button"
+              className={prefs.petScope === option.value ? `${styles.chip} ${styles.chipActive}` : styles.chip}
+              onClick={() => { update(prefs, { petScope: option.value }, commit) }}
+            >
+              {t(option.key)}
+            </button>
+          ))}
+        </div>
+      </div>
+
+      <div className={styles.row}>
+        <div className={styles.rowText}>
+          <span className={styles.label}>{t('petScale')}</span>
+        </div>
+        <div className={styles.rangeRow}>
+          <input
+            className={styles.range}
+            type="range"
+            min={0.6}
+            max={1.6}
+            step={0.1}
+            value={prefs.petScale}
+            aria-label={t('petScale')}
+            onChange={(event) => { update(prefs, { petScale: Number(event.currentTarget.value) }, commit) }}
+          />
+          <span className={styles.value}>{prefs.petScale.toFixed(1)}×</span>
+        </div>
       </div>
     </div>
   )

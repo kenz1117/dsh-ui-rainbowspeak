@@ -31,6 +31,41 @@ export type RainbowKey =
   | 'breathe'
   | 'stateNote'
   | 'reset'
+  | 'petNav'
+  | 'petEnable'
+  | 'petEnableDesc'
+  | 'petScope'
+  | 'petScopeAll'
+  | 'petScopeCurrent'
+  | 'petScale'
+  | 'petScopeNote'
+  | 'petName'
+  | 'petResting'
+  | 'petWorking'
+  | 'petWaiting'
+  | 'petCelebrate'
+  | 'petError'
+  | 'petSleeping'
+  | 'petResting2'
+  | 'petWorking2'
+  | 'petWaiting2'
+  | 'petCelebrate2'
+  | 'petError2'
+  | 'petSleeping2'
+  | 'petPoke1'
+  | 'petPoke2'
+  | 'petPoke3'
+  | 'petDrag'
+  | 'petMenu'
+  | 'petMenuScope'
+  | 'petMenuScopeAll'
+  | 'petMenuScopeCurrent'
+  | 'petMenuSize'
+  | 'petMenuSizeSmall'
+  | 'petMenuSizeMedium'
+  | 'petMenuSizeLarge'
+  | 'petMenuHide'
+  | 'petMenuResume'
 
 /** 中文文案（宿主语言为中文时的显示文本）。 */
 export const zh: Record<RainbowKey, string> = {
@@ -57,6 +92,41 @@ export const zh: Record<RainbowKey, string> = {
   breathe: '呼吸明暗',
   stateNote: '会话运行时自动加速，等待审批时琥珀提醒，出错时红色警示',
   reset: '恢复默认',
+  petNav: '桌面宠物',
+  petEnable: '启用桌宠',
+  petEnableDesc: '住在 DSH 窗口里的小虹，可拖拽、随会话状态换表情',
+  petScope: '关注范围',
+  petScopeAll: '全部会话',
+  petScopeCurrent: '当前会话',
+  petScopeNote: '成功与失败以宿主的回合边界为准：被取消的一轮不会报喜',
+  petScale: '桌宠大小',
+  petName: '小虹',
+  petResting: '陪你待着',
+  petWorking: '在忙，稍等',
+  petWaiting: '需要你点一下',
+  petCelebrate: '这轮跑完啦',
+  petError: '这轮出错了',
+  petSleeping: '打个盹…',
+  petResting2: '在呢，随时喊我',
+  petWorking2: '手上有点活…',
+  petWaiting2: '就等你点头了',
+  petCelebrate2: '搞定！',
+  petError2: '唔…摔了一跤',
+  petSleeping2: 'Zzz…别吵我',
+  petPoke1: '嘿嘿，痒',
+  petPoke2: '别戳啦～',
+  petPoke3: '在的在的！',
+  petDrag: '哇——放我下来嘛',
+  petMenu: '小虹的菜单',
+  petMenuScope: '关注范围',
+  petMenuScopeAll: '全部会话',
+  petMenuScopeCurrent: '当前会话',
+  petMenuSize: '大小',
+  petMenuSizeSmall: '小',
+  petMenuSizeMedium: '中',
+  petMenuSizeLarge: '大',
+  petMenuHide: '让小虹躲一会儿',
+  petMenuResume: '把小虹叫回来',
 }
 
 /** 英文文案（宿主语言为英文时的显示文本）。 */
@@ -84,4 +154,39 @@ export const en: Record<RainbowKey, string> = {
   breathe: 'Breathing',
   stateNote: 'Speeds up while running, amber while awaiting approval, red on errors',
   reset: 'Reset to defaults',
+  petNav: 'Desktop pet',
+  petEnable: 'Show the pet',
+  petEnableDesc: 'A little rainbow companion in the DSH window — drag it around, it reacts to your session',
+  petScope: 'Watch scope',
+  petScopeAll: 'All sessions',
+  petScopeCurrent: 'Current session',
+  petScopeNote: 'Success and failure follow the host turn boundaries — a cancelled turn never celebrates',
+  petScale: 'Pet size',
+  petName: 'Prism',
+  petResting: 'Here with you',
+  petWorking: 'Busy, one moment',
+  petWaiting: 'Needs your click',
+  petCelebrate: 'That round is done',
+  petError: 'That round failed',
+  petSleeping: 'Taking a nap…',
+  petResting2: 'Right here, call me anytime',
+  petWorking2: 'Got a little something going…',
+  petWaiting2: 'Just waiting on your nod',
+  petCelebrate2: 'Done!',
+  petError2: "Oops… took a tumble",
+  petSleeping2: 'Zzz… shh',
+  petPoke1: 'Hehe, ticklish',
+  petPoke2: "Hey, stop poking me",
+  petPoke3: "I'm here, I'm here!",
+  petDrag: 'Wha— put me down!',
+  petMenu: "Prism's menu",
+  petMenuScope: 'Watch scope',
+  petMenuScopeAll: 'All sessions',
+  petMenuScopeCurrent: 'Current session',
+  petMenuSize: 'Size',
+  petMenuSizeSmall: 'Small',
+  petMenuSizeMedium: 'Medium',
+  petMenuSizeLarge: 'Large',
+  petMenuHide: 'Let Prism hide for a while',
+  petMenuResume: 'Call Prism back',
 }
