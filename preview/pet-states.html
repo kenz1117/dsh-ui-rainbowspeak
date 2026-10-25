@@ -5,22 +5,20 @@
 <title>小虹 · 六种表情预览</title>
 <style>
 /**
- * 桌宠「小虹」：纯 CSS + 内联 SVG 路径画的一只彩虹小水滴（圆身 + 呆毛）。
+ * 桌宠「小虹」：纯 CSS 几何画的一只彩虹水滴。
  *
  * 分层是有意的，因为三层的「谁拥有 transform」必须分清：
  * - `.motion` —— **JS 拥有**：挤压回弹、拖拽摆动（直接写 style）；
  * - `.body`  —— **CSS 拥有**：状态动画（呼吸 / 忙碌 / 庆祝 / 抖动 / 打盹）；
  * - `.eye`   —— 眨眼；`.pupil` 用 `--pet-look-x/y` 跟随指针。
  *
- * 剪影与呆毛都是 SVG 路径：身体是圆润的胖椭圆（clip-path 剪出），
- * 轮廓由 `.dropShape` 的描边负责（外圈深色勾形 + 内芯白色边光），
- * 头顶呆毛是独立的小水滴路径，随状态换色（粉/琥珀/红）。
- * 不用 border-radius 画主体——宿主环境会干扰它（实测被渲染成圆角
- * 方块），路径是几何精确的，谁也改不动。
+ * 质感按「玻璃水滴」叠层：身体是彩色玻璃，`.sheen` 负责「光进了玻璃」
+ * （大高光 + 小星点 + 底部内阴影），`.rim` 负责轮廓（外圈深色描边让浅色
+ * 主题下也勾得住形，内圈亮边勾体积）。头顶 `.tip` 是水滴尖——呆毛式的
+ * 小尖端，独立轻摆，是「活着」的信号灯。
  *
- * 质感按「玻璃水滴」叠层：`.sheen` 负责「光进了玻璃」（大高光 + 小星点
- * + 底部内阴影）。配色上角色本色（彩虹）是画作，固定不变；气泡与菜单
- * 走宿主 `--dsw-alias-*` 令牌，深浅主题自动跟随。
+ * 配色：角色本色（彩虹）是画作，固定不变；气泡与菜单走宿主 `--dsw-alias-*`
+ * 令牌，深浅主题自动跟随。
  */
 
 .pet {
@@ -61,9 +59,7 @@
   outline-offset: 4px;
 }
 
-/* JS 形变层：挤压回弹与拖拽摆动都写在这里。
-   阴影用 drop-shadow（跟随 clip-path 后的水滴 alpha）——box-shadow
-   只认 border-radius 的形，clip 之后会被裁掉。 */
+/* JS 形变层：挤压回弹与拖拽摆动都写在这里。 */
 .motion {
   position: relative;
   display: block;
@@ -71,65 +67,6 @@
   height: 100%;
   transform-origin: 50% 90%;
   will-change: transform;
-  filter: drop-shadow(0 8px 16px light-dark(#0f111526, #00000059));
-}
-
-/* 水滴轮廓 SVG：与 .body 同框（inset 对齐 body 的 78% 方框）。
-   三笔：呆毛（渐变填充 + 细描边）、身体外圈深色勾形、内芯白色边光。
-   路径是几何精确的，宿主环境改不动它（border-radius 会被宿主样式
-   干扰成圆角方块，路径不会）。 */
-.dropShape {
-  position: absolute;
-  inset: 0 11% 22% 11%;
-  overflow: visible;
-  pointer-events: none;
-}
-
-/* 呆毛：渐变填充（默认浅粉，waiting/error 换琥珀/红），根部为转轴轻摆。 */
-.tipFill {
-  fill: url(#rainbowspeak-tip);
-  stroke: light-dark(#0f111524, #00000033);
-  stroke-width: 1px;
-  stroke-linejoin: round;
-  transform-box: fill-box;
-  transform-origin: 50% 96%;
-  animation: pet-tip 5.6s ease-in-out infinite;
-}
-
-.pet[data-state='waiting'] .tipFill {
-  fill: url(#rainbowspeak-tip-amber);
-  animation-duration: 1.05s;
-}
-
-.pet[data-state='working'] .tipFill {
-  animation-duration: 1.5s;
-}
-
-.pet[data-state='celebrating'] .tipFill {
-  animation-duration: 0.85s;
-}
-
-.pet[data-state='error'] .tipFill {
-  fill: url(#rainbowspeak-tip-red);
-  animation: pet-tip-wilt 3s ease-in-out infinite;
-}
-
-.pet[data-state='sleeping'] .tipFill {
-  animation: pet-tip-droop 5.4s ease-in-out infinite;
-}
-
-.dropEdge {
-  fill: none;
-  stroke: light-dark(#0f11154d, #00000070);
-  stroke-width: 2.5px;
-  stroke-linejoin: round;
-}
-
-.dropEdgeInner {
-  fill: none;
-  stroke: rgba(255, 255, 255, 0.5);
-  stroke-width: 1px;
-  stroke-linejoin: round;
 }
 
 /* 状态光环：随状态换色，庆祝时更亮。 */
@@ -145,18 +82,37 @@
   animation: pet-aura 3.6s ease-in-out infinite;
 }
 
-/* 身体：彩虹 conic 填充 + SVG clip-path 圆润剪影。
-   剪裁用 objectBoundingBox 单位的路径，任意尺寸等比缩放不变形。 */
 .body {
   position: relative;
   display: block;
   width: 78%;
   height: 78%;
   margin: 0 auto 6%;
-  clip-path: url(#rainbowspeak-drop);
+  border-radius: 50% 50% 45% 45% / 58% 58% 42% 42%;
   background: conic-gradient(from 0deg, #ff6b6b, #ffa94d, #ffd43b, #51cf66, #339af0, #845ef7, #ff6b6b);
+  box-shadow: 0 8px 18px light-dark(#0f111526, #00000059);
   transform-origin: 50% 90%;
   will-change: transform;
+}
+
+/* 水滴尖（呆毛）：头顶的小尖端。两个要点：
+   一、根部必须压进身体（重叠够深、贴近头顶最高点），否则圆顶弧线
+   一转弯尖端就「漂」在空中；二、颜色必须与身体顶部同族——根取身体
+   顶部的本色，梢头只是「被照亮的一截」，换成异色就成插在头上的签子。
+   waiting / error 身体整体换色时呆毛跟着换（见状态段）。 */
+.tip {
+  position: absolute;
+  top: -7%;
+  left: 53%;
+  width: 14%;
+  height: 24%;
+  border-radius: 50% 50% 50% 50% / 70% 70% 32% 32%;
+  background: linear-gradient(196deg, #ffd9d9 0%, #ff9c9c 48%, #ff6b6b 100%);
+  box-shadow: inset -1px 1px 1px rgba(255, 255, 255, 0.45), 0 0 0 1px light-dark(#0f11151f, #0000002e);
+  transform-origin: 50% 96%;
+  transform: rotate(26deg);
+  pointer-events: none;
+  animation: pet-tip 5.6s ease-in-out infinite;
 }
 
 /* 玻璃高光：让水滴有体积感。
@@ -176,7 +132,17 @@
   pointer-events: none;
 }
 
-/* 轮廓已移交给 .dropShape 的 SVG 描边（border-radius 在宿主里不可靠）。 */
+/* 轮廓：外圈深色细描边（浅色主题下把形从亮背景里勾出来），
+   内圈亮边（玻璃边缘的全反射）。 */
+.rim {
+  position: absolute;
+  inset: 0;
+  border-radius: inherit;
+  box-shadow:
+    0 0 0 1px light-dark(#0f111545, #00000066),
+    inset 0 0 0 1.5px rgba(255, 255, 255, 0.42);
+  pointer-events: none;
+}
 
 .face {
   position: absolute;
@@ -212,9 +178,9 @@
   position: absolute;
   left: 50%;
   top: 50%;
-  width: 56%;
-  height: 56%;
-  margin: -28% 0 0 -28%;
+  width: 62%;
+  height: 62%;
+  margin: -31% 0 0 -31%;
   border-radius: 50%;
   background: radial-gradient(circle at 42% 36%, #3d454e 0%, light-dark(#1b1f24, #0b0d10) 62%);
   transform: translate(var(--pet-look-x), var(--pet-look-y));
@@ -270,16 +236,15 @@
   transform: rotate(8deg);
 }
 
-/* 腮红：radial 晕染而非实心块——像皮下透出来的红。核心要浓到在
-   宿主的 DPI 缩放下仍然可读，边缘再淡出。 */
+/* 腮红：radial 晕染而非实心块——像皮下透出来的红，边缘必须消失于无形。 */
 .blush {
   position: absolute;
   top: 54%;
   width: 19%;
   height: 11%;
   border-radius: 50%;
-  background: radial-gradient(circle, rgba(255, 105, 140, 0.62) 0%, rgba(255, 122, 152, 0.28) 46%, rgba(255, 122, 152, 0) 78%);
-  opacity: 0.8;
+  background: radial-gradient(circle, rgba(255, 122, 152, 0.52) 0%, rgba(255, 122, 152, 0) 72%);
+  opacity: 0.75;
   transition: opacity 0.25s ease, transform 0.25s ease;
 }
 
@@ -400,14 +365,12 @@
   line-height: 1;
 }
 
-/* 汗滴：出错时贴着右肩滑落。挂在 .motion（不在 .body 里）——body 带
-   clip-path 会把它裁掉，让它作为「滑出身体表面」的一滴更真实。 */
 .sweat {
   position: absolute;
-  top: 19%;
-  right: 18%;
-  width: 8%;
-  height: 11%;
+  top: 24%;
+  right: 9%;
+  width: 10%;
+  height: 14%;
   border-radius: 50% 50% 50% 50% / 62% 62% 38% 38%;
   background: #74c0fc;
   box-shadow: inset -1px -2px 2px rgba(24, 100, 170, 0.35);
@@ -529,10 +492,14 @@
   --pet-aura: rgba(120, 170, 255, 0.18);
 }
 
-/* 干活：轻快的上下点头。
+/* 干活：轻快的上下点头，呆毛跟着提速摆。
    眼睛眯一点、瞳孔收一点——「专注」和待机的圆眼拉开差距。 */
 .pet[data-state='working'] .body {
   animation: pet-work 1.5s ease-in-out infinite;
+}
+
+.pet[data-state='working'] .tip {
+  animation-duration: 1.5s;
 }
 
 .pet[data-state='working'] .eyeLeft,
@@ -570,6 +537,11 @@
 .pet[data-state='waiting'] .body {
   background: conic-gradient(from 0deg, #f59e0b, #fbbf24, #fcd34d, #f59e0b, #d97706, #f59e0b);
   animation: pet-wait 1.05s ease-in-out infinite;
+}
+
+.pet[data-state='waiting'] .tip {
+  animation-duration: 1.05s;
+  background: linear-gradient(196deg, #fef3c7 0%, #fcd34d 48%, #f59e0b 100%);
 }
 
 .pet[data-state='waiting'] .aura {
@@ -620,6 +592,10 @@
 
 .pet[data-state='celebrating'] .shadow {
   animation: pet-shadow-jump 0.85s cubic-bezier(0.3, 0.9, 0.4, 1) 4;
+}
+
+.pet[data-state='celebrating'] .tip {
+  animation-duration: 0.85s;
 }
 
 .pet[data-state='celebrating'] .aura {
@@ -693,6 +669,11 @@
   animation: pet-shake 0.62s ease-out 1;
 }
 
+.pet[data-state='error'] .tip {
+  animation: pet-tip-wilt 3s ease-in-out infinite;
+  background: linear-gradient(196deg, #fee2e2 0%, #fca5a5 48%, #ef4444 100%);
+}
+
 .pet[data-state='error'] .aura {
   --pet-aura: rgba(239, 68, 68, 0.34);
 }
@@ -740,6 +721,10 @@
 .pet[data-state='sleeping'] .body {
   filter: saturate(0.72) brightness(0.95);
   animation: pet-sleep 5.4s ease-in-out infinite;
+}
+
+.pet[data-state='sleeping'] .tip {
+  animation: pet-tip-droop 5.4s ease-in-out infinite;
 }
 
 .pet[data-state='sleeping'] .shadow {
@@ -903,7 +888,7 @@
    只是不再动；subtle：保留全部反应但幅度收敛，把「弹跳」换成「浮动」。 */
 .pet[data-motion='off'] .body,
 .pet[data-motion='off'] .aura,
-.pet[data-motion='off'] .tipFill,
+.pet[data-motion='off'] .tip,
 .pet[data-motion='off'] .motion,
 .pet[data-motion='off'] .eyeLeft,
 .pet[data-motion='off'] .eyeRight,
@@ -943,6 +928,25 @@
 }
 
 /* ——— 关键帧 ——— */
+
+/* 呆毛轻摆：幅度小、带一点迟滞——像被风吹，不像钟摆。 */
+@keyframes pet-tip {
+  0%, 100% { transform: rotate(26deg) scaleY(1); }
+  32% { transform: rotate(21deg) scaleY(1.07); }
+  68% { transform: rotate(31deg) scaleY(0.96); }
+}
+
+/* 打盹时呆毛垂下：角度更大（耷拉），几乎不摆。 */
+@keyframes pet-tip-droop {
+  0%, 100% { transform: rotate(43deg) scaleY(0.86); }
+  50% { transform: rotate(46deg) scaleY(0.9); }
+}
+
+/* 出错时呆毛蔫掉：垂得更低，无精打采地小幅晃。 */
+@keyframes pet-tip-wilt {
+  0%, 100% { transform: rotate(52deg) scaleY(0.8); }
+  50% { transform: rotate(57deg) scaleY(0.84); }
+}
 
 @keyframes pet-rest {
   0%, 100% { transform: translateY(0) rotate(0deg) scaleY(1); }
@@ -1038,25 +1042,6 @@
   50% { transform: scale(1.06); opacity: 1; }
 }
 
-/* 呆毛轻摆：幅度小、带一点迟滞——像被风吹，不像钟摆。 */
-@keyframes pet-tip {
-  0%, 100% { transform: rotate(0deg) scaleY(1); }
-  32% { transform: rotate(-5deg) scaleY(1.07); }
-  68% { transform: rotate(5deg) scaleY(0.96); }
-}
-
-/* 打盹时呆毛垂下：耷拉着，几乎不摆。 */
-@keyframes pet-tip-droop {
-  0%, 100% { transform: rotate(17deg) scaleY(0.86); }
-  50% { transform: rotate(20deg) scaleY(0.9); }
-}
-
-/* 出错时呆毛蔫掉：垂得更低，无精打采地小幅晃。 */
-@keyframes pet-tip-wilt {
-  0%, 100% { transform: rotate(26deg) scaleY(0.8); }
-  50% { transform: rotate(31deg) scaleY(0.84); }
-}
-
 /* 连戳转圈：起转稍缓、甩过头顶稍快，结尾回正——不是匀速风车。 */
 @keyframes pet-spin {
   0% { transform: rotate(0deg) scale(1, 1); }
@@ -1137,7 +1122,7 @@
 @media (prefers-reduced-motion: reduce) {
   .body,
   .aura,
-  .tipFill,
+  .tip,
   .motion,
   .eyeLeft,
   .eyeRight,
@@ -1178,7 +1163,9 @@ code { color: #999; }
   <button type="button" class="hit">
     <span class="motion">
       <span class="body">
+        <span class="tip"></span>
         <span class="sheen"></span>
+        <span class="rim"></span>
         <span class="face">
           <span class="eyeLeft"><span class="pupil"></span><span class="glint"></span><span class="glintDot"></span><span class="dizzyX"></span></span>
           <span class="eyeRight"><span class="pupil"></span><span class="glint"></span><span class="glintDot"></span><span class="dizzyX"></span></span>
@@ -1188,33 +1175,8 @@ code { color: #999; }
           <span class="blushRight"></span>
           <span class="mouth"><span class="tongue"></span></span>
         </span>
+        <span class="sweat"></span>
       </span>
-      <svg class="dropShape" viewBox="0 0 100 100" aria-hidden="true">
-        <defs>
-          <clipPath id="rainbowspeak-drop" clipPathUnits="objectBoundingBox">
-            <path d="M 0.5 0.06 C 0.732 0.06 0.92 0.239 0.92 0.46 C 0.92 0.681 0.732 0.86 0.5 0.86 C 0.268 0.86 0.08 0.681 0.08 0.46 C 0.08 0.239 0.268 0.06 0.5 0.06 Z"></path>
-          </clipPath>
-          <linearGradient id="rainbowspeak-tip" x1="0.7" y1="0" x2="0.3" y2="1">
-            <stop offset="0" stop-color="#ffd9d9"></stop>
-            <stop offset="0.48" stop-color="#ff9c9c"></stop>
-            <stop offset="1" stop-color="#ff6b6b"></stop>
-          </linearGradient>
-          <linearGradient id="rainbowspeak-tip-amber" x1="0.7" y1="0" x2="0.3" y2="1">
-            <stop offset="0" stop-color="#fef3c7"></stop>
-            <stop offset="0.48" stop-color="#fcd34d"></stop>
-            <stop offset="1" stop-color="#f59e0b"></stop>
-          </linearGradient>
-          <linearGradient id="rainbowspeak-tip-red" x1="0.7" y1="0" x2="0.3" y2="1">
-            <stop offset="0" stop-color="#fee2e2"></stop>
-            <stop offset="0.48" stop-color="#fca5a5"></stop>
-            <stop offset="1" stop-color="#ef4444"></stop>
-          </linearGradient>
-        </defs>
-        <path class="tipFill" d="M 69 -5 C 63.5 -1.5 56.5 3.5 54 9 C 51.8 14 54.5 18.6 59.5 19 C 64.5 19.4 67.8 15.8 67.5 10.5 C 67.3 6 68 -0.5 69 -5 Z" vector-effect="non-scaling-stroke"></path>
-        <path class="dropEdge" d="M 50 6 C 73.2 6 92 23.9 92 46 C 92 68.1 73.2 86 50 86 C 26.8 86 8 68.1 8 46 C 8 23.9 26.8 6 50 6 Z" vector-effect="non-scaling-stroke"></path>
-        <path class="dropEdgeInner" d="M 50 6 C 73.2 6 92 23.9 92 46 C 92 68.1 73.2 86 50 86 C 26.8 86 8 68.1 8 46 C 8 23.9 26.8 6 50 6 Z" vector-effect="non-scaling-stroke"></path>
-      </svg>
-      <span class="sweat"></span>
     </span>
     <span class="shock"></span>
     <span class="sparkles"><span class="sparkle">✦</span><span class="sparkle">✧</span><span class="sparkle">✦</span></span>
@@ -1228,7 +1190,9 @@ code { color: #999; }
   <button type="button" class="hit">
     <span class="motion">
       <span class="body">
+        <span class="tip"></span>
         <span class="sheen"></span>
+        <span class="rim"></span>
         <span class="face">
           <span class="eyeLeft"><span class="pupil"></span><span class="glint"></span><span class="glintDot"></span><span class="dizzyX"></span></span>
           <span class="eyeRight"><span class="pupil"></span><span class="glint"></span><span class="glintDot"></span><span class="dizzyX"></span></span>
@@ -1238,33 +1202,8 @@ code { color: #999; }
           <span class="blushRight"></span>
           <span class="mouth"><span class="tongue"></span></span>
         </span>
+        <span class="sweat"></span>
       </span>
-      <svg class="dropShape" viewBox="0 0 100 100" aria-hidden="true">
-        <defs>
-          <clipPath id="rainbowspeak-drop" clipPathUnits="objectBoundingBox">
-            <path d="M 0.5 0.06 C 0.732 0.06 0.92 0.239 0.92 0.46 C 0.92 0.681 0.732 0.86 0.5 0.86 C 0.268 0.86 0.08 0.681 0.08 0.46 C 0.08 0.239 0.268 0.06 0.5 0.06 Z"></path>
-          </clipPath>
-          <linearGradient id="rainbowspeak-tip" x1="0.7" y1="0" x2="0.3" y2="1">
-            <stop offset="0" stop-color="#ffd9d9"></stop>
-            <stop offset="0.48" stop-color="#ff9c9c"></stop>
-            <stop offset="1" stop-color="#ff6b6b"></stop>
-          </linearGradient>
-          <linearGradient id="rainbowspeak-tip-amber" x1="0.7" y1="0" x2="0.3" y2="1">
-            <stop offset="0" stop-color="#fef3c7"></stop>
-            <stop offset="0.48" stop-color="#fcd34d"></stop>
-            <stop offset="1" stop-color="#f59e0b"></stop>
-          </linearGradient>
-          <linearGradient id="rainbowspeak-tip-red" x1="0.7" y1="0" x2="0.3" y2="1">
-            <stop offset="0" stop-color="#fee2e2"></stop>
-            <stop offset="0.48" stop-color="#fca5a5"></stop>
-            <stop offset="1" stop-color="#ef4444"></stop>
-          </linearGradient>
-        </defs>
-        <path class="tipFill" d="M 69 -5 C 63.5 -1.5 56.5 3.5 54 9 C 51.8 14 54.5 18.6 59.5 19 C 64.5 19.4 67.8 15.8 67.5 10.5 C 67.3 6 68 -0.5 69 -5 Z" vector-effect="non-scaling-stroke"></path>
-        <path class="dropEdge" d="M 50 6 C 73.2 6 92 23.9 92 46 C 92 68.1 73.2 86 50 86 C 26.8 86 8 68.1 8 46 C 8 23.9 26.8 6 50 6 Z" vector-effect="non-scaling-stroke"></path>
-        <path class="dropEdgeInner" d="M 50 6 C 73.2 6 92 23.9 92 46 C 92 68.1 73.2 86 50 86 C 26.8 86 8 68.1 8 46 C 8 23.9 26.8 6 50 6 Z" vector-effect="non-scaling-stroke"></path>
-      </svg>
-      <span class="sweat"></span>
     </span>
     <span class="shock"></span>
     <span class="sparkles"><span class="sparkle">✦</span><span class="sparkle">✧</span><span class="sparkle">✦</span></span>
@@ -1278,7 +1217,9 @@ code { color: #999; }
   <button type="button" class="hit">
     <span class="motion">
       <span class="body">
+        <span class="tip"></span>
         <span class="sheen"></span>
+        <span class="rim"></span>
         <span class="face">
           <span class="eyeLeft"><span class="pupil"></span><span class="glint"></span><span class="glintDot"></span><span class="dizzyX"></span></span>
           <span class="eyeRight"><span class="pupil"></span><span class="glint"></span><span class="glintDot"></span><span class="dizzyX"></span></span>
@@ -1288,33 +1229,8 @@ code { color: #999; }
           <span class="blushRight"></span>
           <span class="mouth"><span class="tongue"></span></span>
         </span>
+        <span class="sweat"></span>
       </span>
-      <svg class="dropShape" viewBox="0 0 100 100" aria-hidden="true">
-        <defs>
-          <clipPath id="rainbowspeak-drop" clipPathUnits="objectBoundingBox">
-            <path d="M 0.5 0.06 C 0.732 0.06 0.92 0.239 0.92 0.46 C 0.92 0.681 0.732 0.86 0.5 0.86 C 0.268 0.86 0.08 0.681 0.08 0.46 C 0.08 0.239 0.268 0.06 0.5 0.06 Z"></path>
-          </clipPath>
-          <linearGradient id="rainbowspeak-tip" x1="0.7" y1="0" x2="0.3" y2="1">
-            <stop offset="0" stop-color="#ffd9d9"></stop>
-            <stop offset="0.48" stop-color="#ff9c9c"></stop>
-            <stop offset="1" stop-color="#ff6b6b"></stop>
-          </linearGradient>
-          <linearGradient id="rainbowspeak-tip-amber" x1="0.7" y1="0" x2="0.3" y2="1">
-            <stop offset="0" stop-color="#fef3c7"></stop>
-            <stop offset="0.48" stop-color="#fcd34d"></stop>
-            <stop offset="1" stop-color="#f59e0b"></stop>
-          </linearGradient>
-          <linearGradient id="rainbowspeak-tip-red" x1="0.7" y1="0" x2="0.3" y2="1">
-            <stop offset="0" stop-color="#fee2e2"></stop>
-            <stop offset="0.48" stop-color="#fca5a5"></stop>
-            <stop offset="1" stop-color="#ef4444"></stop>
-          </linearGradient>
-        </defs>
-        <path class="tipFill" d="M 69 -5 C 63.5 -1.5 56.5 3.5 54 9 C 51.8 14 54.5 18.6 59.5 19 C 64.5 19.4 67.8 15.8 67.5 10.5 C 67.3 6 68 -0.5 69 -5 Z" vector-effect="non-scaling-stroke"></path>
-        <path class="dropEdge" d="M 50 6 C 73.2 6 92 23.9 92 46 C 92 68.1 73.2 86 50 86 C 26.8 86 8 68.1 8 46 C 8 23.9 26.8 6 50 6 Z" vector-effect="non-scaling-stroke"></path>
-        <path class="dropEdgeInner" d="M 50 6 C 73.2 6 92 23.9 92 46 C 92 68.1 73.2 86 50 86 C 26.8 86 8 68.1 8 46 C 8 23.9 26.8 6 50 6 Z" vector-effect="non-scaling-stroke"></path>
-      </svg>
-      <span class="sweat"></span>
     </span>
     <span class="shock"></span>
     <span class="sparkles"><span class="sparkle">✦</span><span class="sparkle">✧</span><span class="sparkle">✦</span></span>
@@ -1328,7 +1244,9 @@ code { color: #999; }
   <button type="button" class="hit">
     <span class="motion">
       <span class="body">
+        <span class="tip"></span>
         <span class="sheen"></span>
+        <span class="rim"></span>
         <span class="face">
           <span class="eyeLeft"><span class="pupil"></span><span class="glint"></span><span class="glintDot"></span><span class="dizzyX"></span></span>
           <span class="eyeRight"><span class="pupil"></span><span class="glint"></span><span class="glintDot"></span><span class="dizzyX"></span></span>
@@ -1338,33 +1256,8 @@ code { color: #999; }
           <span class="blushRight"></span>
           <span class="mouth"><span class="tongue"></span></span>
         </span>
+        <span class="sweat"></span>
       </span>
-      <svg class="dropShape" viewBox="0 0 100 100" aria-hidden="true">
-        <defs>
-          <clipPath id="rainbowspeak-drop" clipPathUnits="objectBoundingBox">
-            <path d="M 0.5 0.06 C 0.732 0.06 0.92 0.239 0.92 0.46 C 0.92 0.681 0.732 0.86 0.5 0.86 C 0.268 0.86 0.08 0.681 0.08 0.46 C 0.08 0.239 0.268 0.06 0.5 0.06 Z"></path>
-          </clipPath>
-          <linearGradient id="rainbowspeak-tip" x1="0.7" y1="0" x2="0.3" y2="1">
-            <stop offset="0" stop-color="#ffd9d9"></stop>
-            <stop offset="0.48" stop-color="#ff9c9c"></stop>
-            <stop offset="1" stop-color="#ff6b6b"></stop>
-          </linearGradient>
-          <linearGradient id="rainbowspeak-tip-amber" x1="0.7" y1="0" x2="0.3" y2="1">
-            <stop offset="0" stop-color="#fef3c7"></stop>
-            <stop offset="0.48" stop-color="#fcd34d"></stop>
-            <stop offset="1" stop-color="#f59e0b"></stop>
-          </linearGradient>
-          <linearGradient id="rainbowspeak-tip-red" x1="0.7" y1="0" x2="0.3" y2="1">
-            <stop offset="0" stop-color="#fee2e2"></stop>
-            <stop offset="0.48" stop-color="#fca5a5"></stop>
-            <stop offset="1" stop-color="#ef4444"></stop>
-          </linearGradient>
-        </defs>
-        <path class="tipFill" d="M 69 -5 C 63.5 -1.5 56.5 3.5 54 9 C 51.8 14 54.5 18.6 59.5 19 C 64.5 19.4 67.8 15.8 67.5 10.5 C 67.3 6 68 -0.5 69 -5 Z" vector-effect="non-scaling-stroke"></path>
-        <path class="dropEdge" d="M 50 6 C 73.2 6 92 23.9 92 46 C 92 68.1 73.2 86 50 86 C 26.8 86 8 68.1 8 46 C 8 23.9 26.8 6 50 6 Z" vector-effect="non-scaling-stroke"></path>
-        <path class="dropEdgeInner" d="M 50 6 C 73.2 6 92 23.9 92 46 C 92 68.1 73.2 86 50 86 C 26.8 86 8 68.1 8 46 C 8 23.9 26.8 6 50 6 Z" vector-effect="non-scaling-stroke"></path>
-      </svg>
-      <span class="sweat"></span>
     </span>
     <span class="shock"></span>
     <span class="sparkles"><span class="sparkle">✦</span><span class="sparkle">✧</span><span class="sparkle">✦</span></span>
@@ -1378,7 +1271,9 @@ code { color: #999; }
   <button type="button" class="hit">
     <span class="motion">
       <span class="body">
+        <span class="tip"></span>
         <span class="sheen"></span>
+        <span class="rim"></span>
         <span class="face">
           <span class="eyeLeft"><span class="pupil"></span><span class="glint"></span><span class="glintDot"></span><span class="dizzyX"></span></span>
           <span class="eyeRight"><span class="pupil"></span><span class="glint"></span><span class="glintDot"></span><span class="dizzyX"></span></span>
@@ -1388,33 +1283,8 @@ code { color: #999; }
           <span class="blushRight"></span>
           <span class="mouth"><span class="tongue"></span></span>
         </span>
+        <span class="sweat"></span>
       </span>
-      <svg class="dropShape" viewBox="0 0 100 100" aria-hidden="true">
-        <defs>
-          <clipPath id="rainbowspeak-drop" clipPathUnits="objectBoundingBox">
-            <path d="M 0.5 0.06 C 0.732 0.06 0.92 0.239 0.92 0.46 C 0.92 0.681 0.732 0.86 0.5 0.86 C 0.268 0.86 0.08 0.681 0.08 0.46 C 0.08 0.239 0.268 0.06 0.5 0.06 Z"></path>
-          </clipPath>
-          <linearGradient id="rainbowspeak-tip" x1="0.7" y1="0" x2="0.3" y2="1">
-            <stop offset="0" stop-color="#ffd9d9"></stop>
-            <stop offset="0.48" stop-color="#ff9c9c"></stop>
-            <stop offset="1" stop-color="#ff6b6b"></stop>
-          </linearGradient>
-          <linearGradient id="rainbowspeak-tip-amber" x1="0.7" y1="0" x2="0.3" y2="1">
-            <stop offset="0" stop-color="#fef3c7"></stop>
-            <stop offset="0.48" stop-color="#fcd34d"></stop>
-            <stop offset="1" stop-color="#f59e0b"></stop>
-          </linearGradient>
-          <linearGradient id="rainbowspeak-tip-red" x1="0.7" y1="0" x2="0.3" y2="1">
-            <stop offset="0" stop-color="#fee2e2"></stop>
-            <stop offset="0.48" stop-color="#fca5a5"></stop>
-            <stop offset="1" stop-color="#ef4444"></stop>
-          </linearGradient>
-        </defs>
-        <path class="tipFill" d="M 69 -5 C 63.5 -1.5 56.5 3.5 54 9 C 51.8 14 54.5 18.6 59.5 19 C 64.5 19.4 67.8 15.8 67.5 10.5 C 67.3 6 68 -0.5 69 -5 Z" vector-effect="non-scaling-stroke"></path>
-        <path class="dropEdge" d="M 50 6 C 73.2 6 92 23.9 92 46 C 92 68.1 73.2 86 50 86 C 26.8 86 8 68.1 8 46 C 8 23.9 26.8 6 50 6 Z" vector-effect="non-scaling-stroke"></path>
-        <path class="dropEdgeInner" d="M 50 6 C 73.2 6 92 23.9 92 46 C 92 68.1 73.2 86 50 86 C 26.8 86 8 68.1 8 46 C 8 23.9 26.8 6 50 6 Z" vector-effect="non-scaling-stroke"></path>
-      </svg>
-      <span class="sweat"></span>
     </span>
     <span class="shock"></span>
     <span class="sparkles"><span class="sparkle">✦</span><span class="sparkle">✧</span><span class="sparkle">✦</span></span>
@@ -1428,7 +1298,9 @@ code { color: #999; }
   <button type="button" class="hit">
     <span class="motion">
       <span class="body">
+        <span class="tip"></span>
         <span class="sheen"></span>
+        <span class="rim"></span>
         <span class="face">
           <span class="eyeLeft"><span class="pupil"></span><span class="glint"></span><span class="glintDot"></span><span class="dizzyX"></span></span>
           <span class="eyeRight"><span class="pupil"></span><span class="glint"></span><span class="glintDot"></span><span class="dizzyX"></span></span>
@@ -1438,33 +1310,8 @@ code { color: #999; }
           <span class="blushRight"></span>
           <span class="mouth"><span class="tongue"></span></span>
         </span>
+        <span class="sweat"></span>
       </span>
-      <svg class="dropShape" viewBox="0 0 100 100" aria-hidden="true">
-        <defs>
-          <clipPath id="rainbowspeak-drop" clipPathUnits="objectBoundingBox">
-            <path d="M 0.5 0.06 C 0.732 0.06 0.92 0.239 0.92 0.46 C 0.92 0.681 0.732 0.86 0.5 0.86 C 0.268 0.86 0.08 0.681 0.08 0.46 C 0.08 0.239 0.268 0.06 0.5 0.06 Z"></path>
-          </clipPath>
-          <linearGradient id="rainbowspeak-tip" x1="0.7" y1="0" x2="0.3" y2="1">
-            <stop offset="0" stop-color="#ffd9d9"></stop>
-            <stop offset="0.48" stop-color="#ff9c9c"></stop>
-            <stop offset="1" stop-color="#ff6b6b"></stop>
-          </linearGradient>
-          <linearGradient id="rainbowspeak-tip-amber" x1="0.7" y1="0" x2="0.3" y2="1">
-            <stop offset="0" stop-color="#fef3c7"></stop>
-            <stop offset="0.48" stop-color="#fcd34d"></stop>
-            <stop offset="1" stop-color="#f59e0b"></stop>
-          </linearGradient>
-          <linearGradient id="rainbowspeak-tip-red" x1="0.7" y1="0" x2="0.3" y2="1">
-            <stop offset="0" stop-color="#fee2e2"></stop>
-            <stop offset="0.48" stop-color="#fca5a5"></stop>
-            <stop offset="1" stop-color="#ef4444"></stop>
-          </linearGradient>
-        </defs>
-        <path class="tipFill" d="M 69 -5 C 63.5 -1.5 56.5 3.5 54 9 C 51.8 14 54.5 18.6 59.5 19 C 64.5 19.4 67.8 15.8 67.5 10.5 C 67.3 6 68 -0.5 69 -5 Z" vector-effect="non-scaling-stroke"></path>
-        <path class="dropEdge" d="M 50 6 C 73.2 6 92 23.9 92 46 C 92 68.1 73.2 86 50 86 C 26.8 86 8 68.1 8 46 C 8 23.9 26.8 6 50 6 Z" vector-effect="non-scaling-stroke"></path>
-        <path class="dropEdgeInner" d="M 50 6 C 73.2 6 92 23.9 92 46 C 92 68.1 73.2 86 50 86 C 26.8 86 8 68.1 8 46 C 8 23.9 26.8 6 50 6 Z" vector-effect="non-scaling-stroke"></path>
-      </svg>
-      <span class="sweat"></span>
     </span>
     <span class="shock"></span>
     <span class="sparkles"><span class="sparkle">✦</span><span class="sparkle">✧</span><span class="sparkle">✦</span></span>
@@ -1481,7 +1328,9 @@ code { color: #999; }
   <button type="button" class="hit">
     <span class="motion">
       <span class="body">
+        <span class="tip"></span>
         <span class="sheen"></span>
+        <span class="rim"></span>
         <span class="face">
           <span class="eyeLeft"><span class="pupil"></span><span class="glint"></span><span class="glintDot"></span><span class="dizzyX"></span></span>
           <span class="eyeRight"><span class="pupil"></span><span class="glint"></span><span class="glintDot"></span><span class="dizzyX"></span></span>
@@ -1491,33 +1340,8 @@ code { color: #999; }
           <span class="blushRight"></span>
           <span class="mouth"><span class="tongue"></span></span>
         </span>
+        <span class="sweat"></span>
       </span>
-      <svg class="dropShape" viewBox="0 0 100 100" aria-hidden="true">
-        <defs>
-          <clipPath id="rainbowspeak-drop" clipPathUnits="objectBoundingBox">
-            <path d="M 0.5 0.06 C 0.732 0.06 0.92 0.239 0.92 0.46 C 0.92 0.681 0.732 0.86 0.5 0.86 C 0.268 0.86 0.08 0.681 0.08 0.46 C 0.08 0.239 0.268 0.06 0.5 0.06 Z"></path>
-          </clipPath>
-          <linearGradient id="rainbowspeak-tip" x1="0.7" y1="0" x2="0.3" y2="1">
-            <stop offset="0" stop-color="#ffd9d9"></stop>
-            <stop offset="0.48" stop-color="#ff9c9c"></stop>
-            <stop offset="1" stop-color="#ff6b6b"></stop>
-          </linearGradient>
-          <linearGradient id="rainbowspeak-tip-amber" x1="0.7" y1="0" x2="0.3" y2="1">
-            <stop offset="0" stop-color="#fef3c7"></stop>
-            <stop offset="0.48" stop-color="#fcd34d"></stop>
-            <stop offset="1" stop-color="#f59e0b"></stop>
-          </linearGradient>
-          <linearGradient id="rainbowspeak-tip-red" x1="0.7" y1="0" x2="0.3" y2="1">
-            <stop offset="0" stop-color="#fee2e2"></stop>
-            <stop offset="0.48" stop-color="#fca5a5"></stop>
-            <stop offset="1" stop-color="#ef4444"></stop>
-          </linearGradient>
-        </defs>
-        <path class="tipFill" d="M 69 -5 C 63.5 -1.5 56.5 3.5 54 9 C 51.8 14 54.5 18.6 59.5 19 C 64.5 19.4 67.8 15.8 67.5 10.5 C 67.3 6 68 -0.5 69 -5 Z" vector-effect="non-scaling-stroke"></path>
-        <path class="dropEdge" d="M 50 6 C 73.2 6 92 23.9 92 46 C 92 68.1 73.2 86 50 86 C 26.8 86 8 68.1 8 46 C 8 23.9 26.8 6 50 6 Z" vector-effect="non-scaling-stroke"></path>
-        <path class="dropEdgeInner" d="M 50 6 C 73.2 6 92 23.9 92 46 C 92 68.1 73.2 86 50 86 C 26.8 86 8 68.1 8 46 C 8 23.9 26.8 6 50 6 Z" vector-effect="non-scaling-stroke"></path>
-      </svg>
-      <span class="sweat"></span>
     </span>
     <span class="shock"></span>
     <span class="sparkles"><span class="sparkle">✦</span><span class="sparkle">✧</span><span class="sparkle">✦</span></span>
@@ -1531,7 +1355,9 @@ code { color: #999; }
   <button type="button" class="hit">
     <span class="motion">
       <span class="body">
+        <span class="tip"></span>
         <span class="sheen"></span>
+        <span class="rim"></span>
         <span class="face">
           <span class="eyeLeft"><span class="pupil"></span><span class="glint"></span><span class="glintDot"></span><span class="dizzyX"></span></span>
           <span class="eyeRight"><span class="pupil"></span><span class="glint"></span><span class="glintDot"></span><span class="dizzyX"></span></span>
@@ -1541,33 +1367,8 @@ code { color: #999; }
           <span class="blushRight"></span>
           <span class="mouth"><span class="tongue"></span></span>
         </span>
+        <span class="sweat"></span>
       </span>
-      <svg class="dropShape" viewBox="0 0 100 100" aria-hidden="true">
-        <defs>
-          <clipPath id="rainbowspeak-drop" clipPathUnits="objectBoundingBox">
-            <path d="M 0.5 0.06 C 0.732 0.06 0.92 0.239 0.92 0.46 C 0.92 0.681 0.732 0.86 0.5 0.86 C 0.268 0.86 0.08 0.681 0.08 0.46 C 0.08 0.239 0.268 0.06 0.5 0.06 Z"></path>
-          </clipPath>
-          <linearGradient id="rainbowspeak-tip" x1="0.7" y1="0" x2="0.3" y2="1">
-            <stop offset="0" stop-color="#ffd9d9"></stop>
-            <stop offset="0.48" stop-color="#ff9c9c"></stop>
-            <stop offset="1" stop-color="#ff6b6b"></stop>
-          </linearGradient>
-          <linearGradient id="rainbowspeak-tip-amber" x1="0.7" y1="0" x2="0.3" y2="1">
-            <stop offset="0" stop-color="#fef3c7"></stop>
-            <stop offset="0.48" stop-color="#fcd34d"></stop>
-            <stop offset="1" stop-color="#f59e0b"></stop>
-          </linearGradient>
-          <linearGradient id="rainbowspeak-tip-red" x1="0.7" y1="0" x2="0.3" y2="1">
-            <stop offset="0" stop-color="#fee2e2"></stop>
-            <stop offset="0.48" stop-color="#fca5a5"></stop>
-            <stop offset="1" stop-color="#ef4444"></stop>
-          </linearGradient>
-        </defs>
-        <path class="tipFill" d="M 69 -5 C 63.5 -1.5 56.5 3.5 54 9 C 51.8 14 54.5 18.6 59.5 19 C 64.5 19.4 67.8 15.8 67.5 10.5 C 67.3 6 68 -0.5 69 -5 Z" vector-effect="non-scaling-stroke"></path>
-        <path class="dropEdge" d="M 50 6 C 73.2 6 92 23.9 92 46 C 92 68.1 73.2 86 50 86 C 26.8 86 8 68.1 8 46 C 8 23.9 26.8 6 50 6 Z" vector-effect="non-scaling-stroke"></path>
-        <path class="dropEdgeInner" d="M 50 6 C 73.2 6 92 23.9 92 46 C 92 68.1 73.2 86 50 86 C 26.8 86 8 68.1 8 46 C 8 23.9 26.8 6 50 6 Z" vector-effect="non-scaling-stroke"></path>
-      </svg>
-      <span class="sweat"></span>
     </span>
     <span class="shock"></span>
     <span class="sparkles"><span class="sparkle">✦</span><span class="sparkle">✧</span><span class="sparkle">✦</span></span>

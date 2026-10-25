@@ -2,9 +2,9 @@
 /**
  * 生成桌宠外形预览页：preview/pet-states.html
  *
- * 为什么单独做一页：桌宠的六种表情全是 CSS 驱动的（`data-state` 切换），
+ * 为什么单独做一页：桌宠的表情全是 CSS 驱动的（`data-state` 切换），
  * 而真实渲染要连着整个宿主跑起来。预览页把 `src/client/pet.module.css`
- * 原样内联，配上六份静态标记，一眼就能看全六种状态——改 CSS 时不用
+ * 原样内联，配上静态标记，一眼就能看全所有状态——改 CSS 时不用
  * 每次都去宿主里点一遍。
  *
  * 标记结构与 `src/client/pet.tsx` 保持一致（改组件结构时同步改这里）。
@@ -34,11 +34,6 @@ const REACTIONS = [
   ['pat', '被摸摸'],
 ]
 
-/** 剪影与呆毛路径（与 pet.tsx 的常量一致）。 */
-const DROP_PATH = 'M 50 6 C 73.2 6 92 23.9 92 46 C 92 68.1 73.2 86 50 86 C 26.8 86 8 68.1 8 46 C 8 23.9 26.8 6 50 6 Z'
-const DROP_PATH_BB = 'M 0.5 0.06 C 0.732 0.06 0.92 0.239 0.92 0.46 C 0.92 0.681 0.732 0.86 0.5 0.86 C 0.268 0.86 0.08 0.681 0.08 0.46 C 0.08 0.239 0.268 0.06 0.5 0.06 Z'
-const TIP_PATH = 'M 69 -5 C 63.5 -1.5 56.5 3.5 54 9 C 51.8 14 54.5 18.6 59.5 19 C 64.5 19.4 67.8 15.8 67.5 10.5 C 67.3 6 68 -0.5 69 -5 Z'
-
 /**
  * 一只桌宠的静态标记（与组件的 DOM 结构一致）。
  * @param state - 状态名。
@@ -53,7 +48,9 @@ function petMarkup(state, reaction = '') {
   <button type="button" class="hit">
     <span class="motion">
       <span class="body">
+        <span class="tip"></span>
         <span class="sheen"></span>
+        <span class="rim"></span>
         <span class="face">
           <span class="eyeLeft"><span class="pupil"></span><span class="glint"></span><span class="glintDot"></span><span class="dizzyX"></span></span>
           <span class="eyeRight"><span class="pupil"></span><span class="glint"></span><span class="glintDot"></span><span class="dizzyX"></span></span>
@@ -63,33 +60,8 @@ function petMarkup(state, reaction = '') {
           <span class="blushRight"></span>
           <span class="mouth"><span class="tongue"></span></span>
         </span>
+        <span class="sweat"></span>
       </span>
-      <svg class="dropShape" viewBox="0 0 100 100" aria-hidden="true">
-        <defs>
-          <clipPath id="rainbowspeak-drop" clipPathUnits="objectBoundingBox">
-            <path d="${DROP_PATH_BB}"></path>
-          </clipPath>
-          <linearGradient id="rainbowspeak-tip" x1="0.7" y1="0" x2="0.3" y2="1">
-            <stop offset="0" stop-color="#ffd9d9"></stop>
-            <stop offset="0.48" stop-color="#ff9c9c"></stop>
-            <stop offset="1" stop-color="#ff6b6b"></stop>
-          </linearGradient>
-          <linearGradient id="rainbowspeak-tip-amber" x1="0.7" y1="0" x2="0.3" y2="1">
-            <stop offset="0" stop-color="#fef3c7"></stop>
-            <stop offset="0.48" stop-color="#fcd34d"></stop>
-            <stop offset="1" stop-color="#f59e0b"></stop>
-          </linearGradient>
-          <linearGradient id="rainbowspeak-tip-red" x1="0.7" y1="0" x2="0.3" y2="1">
-            <stop offset="0" stop-color="#fee2e2"></stop>
-            <stop offset="0.48" stop-color="#fca5a5"></stop>
-            <stop offset="1" stop-color="#ef4444"></stop>
-          </linearGradient>
-        </defs>
-        <path class="tipFill" d="${TIP_PATH}" vector-effect="non-scaling-stroke"></path>
-        <path class="dropEdge" d="${DROP_PATH}" vector-effect="non-scaling-stroke"></path>
-        <path class="dropEdgeInner" d="${DROP_PATH}" vector-effect="non-scaling-stroke"></path>
-      </svg>
-      <span class="sweat"></span>
     </span>
     <span class="shock"></span>
     <span class="sparkles"><span class="sparkle">✦</span><span class="sparkle">✧</span><span class="sparkle">✦</span></span>

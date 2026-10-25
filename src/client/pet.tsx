@@ -72,21 +72,6 @@ const SCROLL_GAZE_POINTER_IDLE_MS = 2500
 /** 一次性台词的展示时长（ms）。 */
 const FLASH_MS = 2200
 
-/**
- * 身体剪影（viewBox 0 0 100 100）：圆润的胖椭圆——角色的基础形。
- * 路径绘制是为了免疫宿主对 border-radius 的干扰（实测被渲染成圆角方块）。
- */
-const DROP_PATH = 'M 50 6 C 73.2 6 92 23.9 92 46 C 92 68.1 73.2 86 50 86 C 26.8 86 8 68.1 8 46 C 8 23.9 26.8 6 50 6 Z'
-
-/** 同一路径的 objectBoundingBox 版（坐标 0-1，供 clipPathUnits 消费）。 */
-const DROP_PATH_BB = 'M 0.5 0.06 C 0.732 0.06 0.92 0.239 0.92 0.46 C 0.92 0.681 0.732 0.86 0.5 0.86 C 0.268 0.86 0.08 0.681 0.08 0.46 C 0.08 0.239 0.268 0.06 0.5 0.06 Z'
-
-/** 头顶呆毛：小水滴形，尖端朝右上、根部埋进头顶。独立路径，随状态换色。 */
-const TIP_PATH = 'M 69 -5 C 63.5 -1.5 56.5 3.5 54 9 C 51.8 14 54.5 18.6 59.5 19 C 64.5 19.4 67.8 15.8 67.5 10.5 C 67.3 6 68 -0.5 69 -5 Z'
-
-/** clipPath 的 id（body 的 clip-path 引用同文档内联 SVG；呆毛渐变 id 见组件 defs）。 */
-const DROP_CLIP_ID = 'rainbowspeak-drop'
-
 /** 挤压回弹的时长（ms）。 */
 const SQUASH_MS = 420
 
@@ -725,7 +710,9 @@ export function PetRoot(props: PropsRuntime<'shell.overlay'>): React.ReactElemen
       >
         <span className={styles.motion} ref={motionRef}>
           <span className={styles.body}>
+            <span className={styles.tip} />
             <span className={styles.sheen} />
+            <span className={styles.rim} />
             <span className={styles.face}>
               <span className={styles.eyeLeft}><span className={styles.pupil} /><span className={styles.glint} /><span className={styles.glintDot} /><span className={styles.dizzyX} aria-hidden="true" /></span>
               <span className={styles.eyeRight}><span className={styles.pupil} /><span className={styles.glint} /><span className={styles.glintDot} /><span className={styles.dizzyX} aria-hidden="true" /></span>
@@ -735,34 +722,8 @@ export function PetRoot(props: PropsRuntime<'shell.overlay'>): React.ReactElemen
               <span className={styles.blushRight} />
               <span className={styles.mouth}><span className={styles.tongue} /></span>
             </span>
+            <span className={styles.sweat} aria-hidden="true" />
           </span>
-          {/* 轮廓与呆毛画在身体之上：描边完整可见，呆毛根部压在头顶。 */}
-          <svg className={styles.dropShape} viewBox="0 0 100 100" aria-hidden="true" focusable="false">
-            <defs>
-              <clipPath id={DROP_CLIP_ID} clipPathUnits="objectBoundingBox">
-                <path d={DROP_PATH_BB} />
-              </clipPath>
-              <linearGradient id="rainbowspeak-tip" x1="0.7" y1="0" x2="0.3" y2="1">
-                <stop offset="0" stopColor="#ffd9d9" />
-                <stop offset="0.48" stopColor="#ff9c9c" />
-                <stop offset="1" stopColor="#ff6b6b" />
-              </linearGradient>
-              <linearGradient id="rainbowspeak-tip-amber" x1="0.7" y1="0" x2="0.3" y2="1">
-                <stop offset="0" stopColor="#fef3c7" />
-                <stop offset="0.48" stopColor="#fcd34d" />
-                <stop offset="1" stopColor="#f59e0b" />
-              </linearGradient>
-              <linearGradient id="rainbowspeak-tip-red" x1="0.7" y1="0" x2="0.3" y2="1">
-                <stop offset="0" stopColor="#fee2e2" />
-                <stop offset="0.48" stopColor="#fca5a5" />
-                <stop offset="1" stopColor="#ef4444" />
-              </linearGradient>
-            </defs>
-            <path className={styles.tipFill} d={TIP_PATH} vectorEffect="non-scaling-stroke" />
-            <path className={styles.dropEdge} d={DROP_PATH} vectorEffect="non-scaling-stroke" />
-            <path className={styles.dropEdgeInner} d={DROP_PATH} vectorEffect="non-scaling-stroke" />
-          </svg>
-          <span className={styles.sweat} aria-hidden="true" />
         </span>
         <span className={styles.shock} key={pokeSeq} aria-hidden="true" />
         <span className={styles.sparkles} aria-hidden="true">
