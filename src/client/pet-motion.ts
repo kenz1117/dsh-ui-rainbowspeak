@@ -25,8 +25,35 @@ export const STATE_LINES: Record<PetState, readonly [RainbowKey, RainbowKey]> = 
   sleeping: ['petSleeping', 'petSleeping2'],
 }
 
-/** 被戳时的台词。 */
-export const POKE_LINES: readonly RainbowKey[] = ['petPoke1', 'petPoke2', 'petPoke3']
+/** 被戳时的台词（池子越大越耐戳；顺序轮换保证短期内不复读）。 */
+export const POKE_LINES: readonly RainbowKey[] = ['petPoke1', 'petPoke2', 'petPoke3', 'petPoke4', 'petPoke5']
+
+/** 连戳转圈的台词（转圈 + 晕）。 */
+export const SPIN_LINES: readonly RainbowKey[] = ['petSpin1', 'petSpin2']
+
+/** 长按摸摸的台词。 */
+export const PAT_LINES: readonly RainbowKey[] = ['petPat1', 'petPat2']
+
+/** 连戳判定窗口（ms）：两次戳击间隔小于它就算「连戳」，触发转圈。 */
+export const POKE_WINDOW_MS = 320
+
+/** 长按判定时长（ms）：按住不动超过它就算「摸摸」而不是戳。 */
+export const LONG_PRESS_MS = 650
+
+/**
+ * 是否连戳：两次戳击落在判定窗口内。
+ *
+ * 双击是用户明确的重互动信号，值得一个比戳更大的反应（转圈）。
+ * @param prevAt - 上一次戳击时刻；从未戳过为 `null`。
+ * @param now - 本次戳击时刻。
+ * @param windowMs - 判定窗口（ms）。
+ * @returns 是否连戳。
+ */
+export function isRapidPoke(prevAt: number | null, now: number, windowMs: number = POKE_WINDOW_MS): boolean {
+  if (prevAt === null) return false
+  const gap = now - prevAt
+  return gap >= 0 && gap <= windowMs
+}
 
 /**
  * 按序号轮换取一个键。
@@ -58,6 +85,35 @@ export function lookVector(dx: number, dy: number, max: number): { x: number; y:
   if (distance === 0) return { x: 0, y: 0 }
   const scale = Math.min(1, max / distance)
   return { x: dx * scale, y: dy * scale }
+}
+
+/** 闲逛扫视的最大偏移（px）：比指针跟随更收敛——是「瞟一眼」，不是「盯着」。 */
+export const WANDER_MAX = 2.6
+
+/**
+ * 随机扫视目标：指针长时间不动时，瞳孔偶尔自己瞟向一个随机方向。
+ *
+ * 「活着」的感觉来自看似自主的内驱动作——视线偶尔离开正前方再回中，
+ * 比任何循环动画都更像生命体。随机源注入是为了可测。
+ * @param random - 随机源（默认 `Math.random`）。
+ * @param max - 扫视最大半径（px）。
+ * @returns 扫视目标偏移（px）。
+ */
+export function wanderGaze(random: () => number = Math.random, max: number = WANDER_MAX): { x: number; y: number } {
+  const angle = random() * Math.PI * 2
+  const radius = random() * max
+  return { x: Math.cos(angle) * radius, y: Math.sin(angle) * radius }
+}
+
+/**
+ * 下次扫视要等多久（ms）：2.4s–5.6s 之间随机。
+ *
+ * 间隔不规律才像自己的主意；固定周期扫视像钟表，反而假。
+ * @param random - 随机源（默认 `Math.random`）。
+ * @returns 等待时长（ms）。
+ */
+export function wanderDelay(random: () => number = Math.random): number {
+  return 2400 + random() * 3200
 }
 
 /**

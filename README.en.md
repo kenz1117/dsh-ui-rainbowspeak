@@ -45,11 +45,16 @@ Prism's **success and failure follow the host's authoritative turn boundaries** 
 
 ### A pet that watches you
 
-- **Its eyes follow your pointer** — the pupils drift a little (capped at 4.5 px, so they never leave the eye).
-- **Poke it** — it squashes and springs back, says something, and a few hearts pop out.
+- **Its eyes follow your pointer** — the pupils drift a little (capped at 4.5 px, so they never leave the eye). Leave the pointer still for a few seconds and the gaze wanders on its own — random saccades at irregular intervals, like a mind of its own.
+- **Poke it** — it squashes and springs back, says one of five rotating lines, and a few hearts pop out.
+- **Double-poke it** — it spins a full turn, then sees ×_× for a moment.
+- **Press and hold** — that's a pat: a jelly inflate, happy closed eyes, full blush.
 - **Drag it** — it tilts with your momentum, like it's dangling from your fingertip.
 - **Right-click** (or press `Shift+F10`) for a small menu: watch scope / size / let it hide.
 - **Its lines rotate** — two per state, so it never repeats itself.
+- **It notices its environment** — resizing the window makes it stumble, waking up earns you a stretch, and scrolling the chat pulls its gaze along with the content. It lives in the window; it isn't stuck on it.
+- **Three animation intensities** — full / subtle / off. Subtle keeps every reaction but tones down the amplitude; off keeps only expression changes. The OS-level reduced-motion preference always wins.
+- **A true droplet silhouette** — the body is clipped into a pointed-top water drop by an inline SVG path + `clip-path`, with the outline drawn from the same path. Geometrically exact, immune to host-style interference. Layered highlights (main reflection, star dot, top skylight, bottom shade) give it a glass feel, and the ground shadow shrinks with every celebration jump (secondary action).
 
 ### The border is the session state
 
@@ -64,9 +69,9 @@ Classic rainbow / aurora / sunset / peach / ocean / cyberpunk neon — plus *fol
 - **Rainbow marquee border** around the composer card (`[data-composer-card]` host anchor), flowing via a registered `@property` angle so the gradient genuinely animates. Engines without `@property` degrade to a static gradient ring.
 - **Desktop pet "Prism"**: sits on `shell.overlay` (the frame-wide floating layer the host recommends for draggable overlays), draggable, with a persisted position and a greeting bubble on tap. Drawn entirely in CSS geometry — **no external assets**, hence no third-party artwork licensing question.
 - **It interacts**: pupils track your pointer, a poke squashes it and pops hearts, dragging makes it swing with your momentum, and right-click (or `Shift+F10`) opens a small menu (watch scope / size / hide).
-- **Six moods**: resting (breathing + sway), working (nodding), waiting (amber, vertical pupils, raised brows), celebrating (bounce + sparkles + big grin), error (red, sweat drop, rueful grimace), and napping (closed eyes, Zzz — it falls asleep after two idle minutes). The face itself (sclera/pupil/glint, brows, mouth shape, blush) changes per state.
+- **Six moods**: resting (breathing + sway), working (focused squint + nodding), waiting (amber, vertical pupils, raised brows), celebrating (bounce + sparkles + big grin + tongue), error (red, sweat drop, rueful grimace), and napping (closed eyes, Zzz — it falls asleep after two idle minutes). The face itself (sclera/pupil/double glints, brows, mouth shape, blush) changes per state.
 - **Authoritative turn boundaries**: the host half contributes a read-only event stream over Typert (`remote.rainbowPet/watch`); the browser half validates every frame against the same Zod schema before trusting it, and reconnects on a sequence gap rather than acting on half a state.
-- **Settings panel** (`Settings` → `Rainbow border`): enable/disable, flow speed (1–10 s per loop), ring width (1–6 px), color scheme, placement (all sides / top / bottom), reverse flow, and a breathing brightness overlay — plus a **desktop pet** group: show the pet, watch scope (all sessions / current session), and pet size (0.6–1.6×). All preferences persist in `localStorage` and apply live.
+- **Settings panel** (`Settings` → `Rainbow border`): enable/disable, flow speed (1–10 s per loop), ring width (1–6 px), color scheme, placement (all sides / top / bottom), reverse flow, and a breathing brightness overlay — plus a **desktop pet** group: show the pet, watch scope (all sessions / current session), animation intensity (full / subtle / off), and pet size (0.6–1.6×). All preferences persist in `localStorage` and apply live.
 
 
   ![Settings panel: seven palettes, flow speed, ring width and placement](assets/02-settings-rainbow.png)

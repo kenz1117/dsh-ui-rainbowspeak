@@ -19,6 +19,9 @@ export type RainbowPalette = 'rainbow' | 'aurora' | 'sunset' | 'peach' | 'ocean'
 /** 显示位置（CSS 里 mask 保留对应条带）。 */
 export type RainbowSide = 'all' | 'top' | 'bottom'
 
+/** 桌宠动画强度：全量 / 轻柔（幅度收敛）/ 关（只保留表情切换）。 */
+export type PetMotion = 'full' | 'subtle' | 'off'
+
 /** 全部用户偏好。 */
 export interface RainbowPrefs {
   /** 总开关；关闭时样式表隐藏伪元素（不移除插件）。 */
@@ -41,6 +44,8 @@ export interface RainbowPrefs {
   petScope: PetScope
   /** 桌宠尺寸倍率，夹紧 0.6-1.6。 */
   petScale: number
+  /** 桌宠动画强度。 */
+  petMotion: PetMotion
   /** 桌宠左上角横坐标（视口 px）；`null` 表示用默认落位。 */
   petX: number | null
   /** 桌宠左上角纵坐标（视口 px）；`null` 表示用默认落位。 */
@@ -62,6 +67,7 @@ export const DEFAULT_PREFS: Readonly<RainbowPrefs> = Object.freeze({
   petEnabled: true,
   petScope: 'all',
   petScale: 1,
+  petMotion: 'full',
   petX: null,
   petY: null,
 })
@@ -69,6 +75,7 @@ export const DEFAULT_PREFS: Readonly<RainbowPrefs> = Object.freeze({
 const PALETTES: readonly RainbowPalette[] = ['rainbow', 'aurora', 'sunset', 'peach', 'ocean', 'cyberpunk', 'theme']
 const SIDES: readonly RainbowSide[] = ['all', 'top', 'bottom']
 const PET_SCOPES: readonly PetScope[] = ['all', 'current']
+const PET_MOTIONS: readonly PetMotion[] = ['full', 'subtle', 'off']
 const STORAGE_KEY = 'dsh-ui-rainbowspeak.prefs'
 
 /**
@@ -118,6 +125,9 @@ export function clampPrefs(raw: unknown): RainbowPrefs {
       ? source.petScope as PetScope
       : DEFAULT_PREFS.petScope,
     petScale: scale,
+    petMotion: PET_MOTIONS.includes(source.petMotion as PetMotion)
+      ? source.petMotion as PetMotion
+      : DEFAULT_PREFS.petMotion,
     petX: clampCoord(source.petX),
     petY: clampCoord(source.petY),
   }

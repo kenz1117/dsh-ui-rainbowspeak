@@ -10,7 +10,7 @@ import { Switch } from '@deepseek-ai/dsh-client-ui-primitives'
 import type { PropsLocale } from '@deepseek-ai/dsh-client-ui-slots'
 import styles from './settings.module.css'
 import { NS, type RainbowKey } from './locales.ts'
-import { DEFAULT_PREFS, loadPrefs, savePrefs, type RainbowPalette, type RainbowPrefs, type RainbowSide } from './preferences.ts'
+import { DEFAULT_PREFS, loadPrefs, savePrefs, type PetMotion, type RainbowPalette, type RainbowPrefs, type RainbowSide } from './preferences.ts'
 import { PALETTE_STOPS } from './palettes.ts'
 import type { PetScope } from './pet-state.ts'
 
@@ -36,6 +36,13 @@ const SIDE_OPTIONS: readonly { readonly value: RainbowSide; readonly key: Rainbo
 const PET_SCOPE_OPTIONS: readonly { readonly value: PetScope; readonly key: RainbowKey }[] = [
   { value: 'all', key: 'petScopeAll' },
   { value: 'current', key: 'petScopeCurrent' },
+]
+
+/** 桌宠动画强度的选项表（值 → 词典键）。 */
+const PET_MOTION_OPTIONS: readonly { readonly value: PetMotion; readonly key: RainbowKey }[] = [
+  { value: 'full', key: 'petMotionFull' },
+  { value: 'subtle', key: 'petMotionSubtle' },
+  { value: 'off', key: 'petMotionOff' },
 ]
 
 /**
@@ -208,6 +215,25 @@ export function RainbowSettingsSection({ t }: PropsLocale<typeof NS>): React.Rea
               type="button"
               className={prefs.petScope === option.value ? `${styles.chip} ${styles.chipActive}` : styles.chip}
               onClick={() => { update(prefs, { petScope: option.value }, commit) }}
+            >
+              {t(option.key)}
+            </button>
+          ))}
+        </div>
+      </div>
+
+      <div className={styles.row}>
+        <div className={styles.rowText}>
+          <span className={styles.label}>{t('petMotion')}</span>
+          <span className={styles.desc}>{t('petMotionNote')}</span>
+        </div>
+        <div className={styles.chipRow}>
+          {PET_MOTION_OPTIONS.map((option) => (
+            <button
+              key={option.value}
+              type="button"
+              className={prefs.petMotion === option.value ? `${styles.chip} ${styles.chipActive}` : styles.chip}
+              onClick={() => { update(prefs, { petMotion: option.value }, commit) }}
             >
               {t(option.key)}
             </button>

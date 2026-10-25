@@ -39,6 +39,11 @@ export type RainbowKey =
   | 'petScopeCurrent'
   | 'petScale'
   | 'petScopeNote'
+  | 'petMotion'
+  | 'petMotionNote'
+  | 'petMotionFull'
+  | 'petMotionSubtle'
+  | 'petMotionOff'
   | 'petName'
   | 'petResting'
   | 'petWorking'
@@ -55,7 +60,15 @@ export type RainbowKey =
   | 'petPoke1'
   | 'petPoke2'
   | 'petPoke3'
+  | 'petPoke4'
+  | 'petPoke5'
   | 'petDrag'
+  | 'petSpin1'
+  | 'petSpin2'
+  | 'petPat1'
+  | 'petPat2'
+  | 'petStumble'
+  | 'petWake'
   | 'petMenu'
   | 'petMenuScope'
   | 'petMenuScopeAll'
@@ -100,6 +113,11 @@ export const zh: Record<RainbowKey, string> = {
   petScopeCurrent: '当前会话',
   petScopeNote: '成功与失败以宿主的回合边界为准：被取消的一轮不会报喜',
   petScale: '桌宠大小',
+  petMotion: '动画强度',
+  petMotionNote: '连戳转圈、踉跄这类幅度大的动作按档位收敛；「关」只保留表情切换',
+  petMotionFull: '全量',
+  petMotionSubtle: '轻柔',
+  petMotionOff: '关',
   petName: '小虹',
   petResting: '陪你待着',
   petWorking: '在忙，稍等',
@@ -116,7 +134,15 @@ export const zh: Record<RainbowKey, string> = {
   petPoke1: '嘿嘿，痒',
   petPoke2: '别戳啦～',
   petPoke3: '在的在的！',
+  petPoke4: '干嘛呀（好奇）',
+  petPoke5: '咕噜咕噜…',
   petDrag: '哇——放我下来嘛',
+  petSpin1: '转圈圈～',
+  petSpin2: '晕…天旋地转',
+  petPat1: '好舒服～',
+  petPat2: '再摸一会儿',
+  petStumble: '哎呀，晃了一下',
+  petWake: '哈啊——睡醒了',
   petMenu: '小虹的菜单',
   petMenuScope: '关注范围',
   petMenuScopeAll: '全部会话',
@@ -162,6 +188,11 @@ export const en: Record<RainbowKey, string> = {
   petScopeCurrent: 'Current session',
   petScopeNote: 'Success and failure follow the host turn boundaries — a cancelled turn never celebrates',
   petScale: 'Pet size',
+  petMotion: 'Animation',
+  petMotionNote: 'Big moves like spins and stumbles scale down with this setting; "Off" keeps only the expression changes',
+  petMotionFull: 'Full',
+  petMotionSubtle: 'Subtle',
+  petMotionOff: 'Off',
   petName: 'Prism',
   petResting: 'Here with you',
   petWorking: 'Busy, one moment',
@@ -178,7 +209,15 @@ export const en: Record<RainbowKey, string> = {
   petPoke1: 'Hehe, ticklish',
   petPoke2: "Hey, stop poking me",
   petPoke3: "I'm here, I'm here!",
+  petPoke4: 'What is it? (curious)',
+  petPoke5: 'Bloop bloop…',
   petDrag: 'Wha— put me down!',
+  petSpin1: 'Wheee, spinning~',
+  petSpin2: 'Dizzy… the room is turning',
+  petPat1: 'Ahh, that feels nice~',
+  petPat2: 'Just a little longer…',
+  petStumble: 'Whoa— that was a wobble',
+  petWake: 'Yaaawn—I am awake',
   petMenu: "Prism's menu",
   petMenuScope: 'Watch scope',
   petMenuScopeAll: 'All sessions',

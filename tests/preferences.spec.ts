@@ -42,6 +42,14 @@ describe('clampPrefs', () => {
     expect(clampPrefs({ petScope: 'current' }).petScope).toBe('current')
   })
 
+  it('动画强度三档合法，非法回落默认', () => {
+    expect(clampPrefs({ petMotion: 'full' }).petMotion).toBe('full')
+    expect(clampPrefs({ petMotion: 'subtle' }).petMotion).toBe('subtle')
+    expect(clampPrefs({ petMotion: 'off' }).petMotion).toBe('off')
+    expect(clampPrefs({ petMotion: 'wild' }).petMotion).toBe('full')
+    expect(clampPrefs({ petMotion: 3 }).petMotion).toBe('full')
+  })
+
   it('桌宠坐标只接受有限数，畸形值回落默认落位', () => {
     expect(clampPrefs({ petX: 12, petY: 34 }).petX).toBe(12)
     expect(clampPrefs({ petX: 'left', petY: Number.NaN }).petX).toBeNull()
