@@ -2,7 +2,7 @@
 
 # dsh-ui-rainbowspeak
 
-<p align="center"><b>RainbowSpeak</b> (虹语) — a flowing rainbow border for the chat composer, plus <b>Prism</b>, a rainbow droplet companion that lives in the window: it watches your pointer, waits when you must confirm, and only celebrates when a turn really finished.</p>
+<p align="center"><b>RainbowSpeak</b> (虹语) — a flowing rainbow border for the chat composer, plus <b>Prism</b>, a ba-ji-ball companion that lives in the window: five candy balls to pick from (red / yellow / pink / blue / green), it watches your pointer, waits when you must confirm, and only celebrates when a turn really finished.</p>
 
 <p align="center">
   <a href="https://github.com/kenz1117/dsh-ui-rainbowspeak/stargazers"><img alt="GitHub stars" src="https://img.shields.io/github/stars/kenz1117/dsh-ui-rainbowspeak?logo=github"></a>
@@ -26,11 +26,11 @@
 </div>
 
 <div align="center">
-  <img src="assets/07-pet-states.png" alt="Prism — six moods: resting, working, waiting, celebrating, error, napping" width="80%">
+  <img src="assets/07-pet-states.png" alt="Prism — top: six moods (resting, working, waiting, celebrating, error, napping); bottom: five playable characters (Red, Yellow, Pink, Blue, Green)" width="80%">
 </div>
 
 <div align="center">
-  <img src="assets/pet-demo.gif" alt="Prism in motion: six moods plus a pat, a spin with ×_× eyes, a stumble, a hum, and a drop-in entrance" width="80%">
+  <img src="assets/pet-demo.gif" alt="Prism in motion: a tour through all six moods with speech bubbles, a spin with ×_× eyes, and a pat with candy hearts" width="80%">
 </div>
 
 ## ✨ Why this one
@@ -43,25 +43,24 @@ The pet keeps the same promise: the only host-side addition is a **read-only** s
 
 ### The border, plus a little companion in the window
 
-Besides the border, the plugin ships **Prism** — a rainbow droplet pet that lives inside the DSH window. Drag it around, it remembers where you left it, it sits on the frame-wide `shell.overlay` layer, and it has six moods: resting, working, waiting on you, celebrating, error, and napping.
+Besides the border, the plugin ships **Prism** — a ba-ji-ball pet drawn in pure CSS: a candy round ball with a simple face. **The five balls are five playable characters** (Red, Yellow, Pink, Blue, Green); the color is the character's identity and never changes with mood — switch anytime from the context menu or settings. Drag it around, it remembers where you left it, it sits on the frame-wide `shell.overlay` layer, and it has six moods layered on top of whichever character you picked: resting, working, waiting on you, celebrating, error, and napping.
 
 Prism's **success and failure follow the host's authoritative turn boundaries** (a read-only `session/event` stream delivered over a Typert remote): a cancelled turn never celebrates, because celebrating a cancelled turn is a lie. When that stream is unavailable the pet falls back to the client's own session state for "running / waiting on you" — and stays quiet about outcomes it cannot know.
 
 ### A pet that watches you
 
-- **Its eyes follow your pointer** — the pupils drift a little (capped at 4.5 px, so they never leave the eye). Leave the pointer still for a few seconds and the gaze wanders on its own — random saccades at irregular intervals, like a mind of its own.
-- **Poke it** — it squashes and springs back, says one of five rotating lines, and a few hearts pop out.
+- **Its eyes follow your pointer** — the pupils glide a little (capped at 5.5 px, so they never leave the eye); the gaze always slides, never jumps. Leave the pointer still for a few seconds and the gaze wanders on its own, then drifts slowly back — random saccades at irregular intervals, like a mind of its own.
+- **Poke it** — it squashes and springs back, says one of five rotating lines, and pure-CSS candy hearts float out.
 - **Double-poke it** — it spins a full turn, then sees ×_× for a moment.
 - **Press and hold** — that's a pat: a jelly inflate, happy closed eyes, full blush.
 - **Poke it while it naps** — a startle: it bounces up with a shiver, instantly awake.
-- **Drag it** — it tilts with your momentum, like it's dangling from your fingertip; letting go earns a little landing bounce.
+- **Drag it** — it tilts with your momentum, like it's dangling from your fingertip, with a gentle pinch-lift; letting go earns a little landing bounce.
 - **Leave it alone long enough** — it hums itself a tune, ♪ notes floating out (random 36–60 s cooldown).
-- **Every appearance** — a random entrance animation: pop in / drop in / spin in / hop in.
-- **Right-click** (or press `Shift+F10`) for a small menu: watch scope / size / let it hide.
+- **Every appearance** — a random entrance animation: pop in / drop in (its shadow lands first) / spin in / hop in.
+- **Right-click** (or press `Shift+F10`) for a small menu: character / watch scope / size / let it hide.
 - **Its lines rotate** — two per state, so it never repeats itself.
 - **It notices its environment** — resizing the window makes it stumble, waking up earns you a stretch, and scrolling the chat pulls its gaze along with the content. It lives in the window; it isn't stuck on it.
 - **Three animation intensities** — full / subtle / off. Subtle keeps every reaction but tones down the amplitude; off keeps only expression changes. The OS-level reduced-motion preference always wins.
-- **Glass-drop rendering, pure CSS** — a droplet tip (ahoge) on the head that changes color and posture per state, five layers of light (main reflection, star dot, top skylight, bottom shade, ground bounce), and a radially fading ground shadow that shrinks with every celebration jump (secondary action).
 
 ### The border is the session state
 
@@ -74,17 +73,18 @@ Classic rainbow / aurora / sunset / peach / ocean / cyberpunk neon — plus *fol
 ## 🌈 Features
 
 - **Rainbow marquee border** around the composer card (`[data-composer-card]` host anchor), flowing via a registered `@property` angle so the gradient genuinely animates. Engines without `@property` degrade to a static gradient ring.
-- **Desktop pet "Prism"**: sits on `shell.overlay` (the frame-wide floating layer the host recommends for draggable overlays), draggable, with a persisted position and a greeting bubble on tap. Drawn entirely in CSS geometry — **no external assets**, hence no third-party artwork licensing question.
-- **It interacts**: pupils track your pointer, a poke squashes it and pops hearts, dragging makes it swing with your momentum, and right-click (or `Shift+F10`) opens a small menu (watch scope / size / hide).
-- **Six moods**: resting (breathing + sway), working (focused squint + nodding), waiting (amber, vertical pupils, raised brows), celebrating (bounce + sparkles + big grin + tongue), error (red, sweat drop, rueful grimace), and napping (closed eyes, Zzz — it falls asleep after two idle minutes). The face itself (sclera/pupil/double glints, brows, mouth shape, blush) changes per state.
+- **Desktop pet "Prism"**: sits on `shell.overlay` (the frame-wide floating layer the host recommends for draggable overlays), draggable, with a persisted position and a greeting bubble on tap. Drawn entirely in CSS geometry in a hand-drawn ba-ji-ball style — **no external assets**, hence no third-party artwork licensing question.
+- **Five playable characters**: Red, Yellow, Pink, Blue, Green — five independent characters, each with a signature pupil color (red ball / green pupils, yellow / red, pink / blue, blue / dark, green / orange). The color is the identity; expressions change with state. Switch anytime from the context menu or settings.
+- **It interacts**: pupils track your pointer on a gliding curve, a poke squashes it and pops candy hearts, dragging makes it swing with your momentum, and right-click (or `Shift+F10`) opens a small menu (character / watch scope / size / hide).
+- **Six moods**: resting (breathing + sway + green pupils with a pout), working (gold-rim glasses + a steady little rhythm), waiting (happy squint + a light bounce), celebrating (bounce + sparkles + big grin + tongue), error (wide eyes + sweat drop), and napping (closed eyes, Zzz — it falls asleep after two idle minutes). Face details (eye shape / pupil color / mouth / glasses / blush) differ per state and cross-fade on switch — expressions *become*, they don't snap.
+- **Candy-ball rendering, pure CSS**: radial-gradient sphere + five layers of light (main reflection, star dot, shaded back, contact shade, ground bounce) + a specular that drifts with the breathing; a radially fading ground shadow that syncs with every celebration jump, startle, landing, stretch and drop-in entrance (secondary action); the round silhouette is pinned by `clip-path`, immune to host-global style overrides.
 - **Authoritative turn boundaries**: the host half contributes a read-only event stream over Typert (`remote.rainbowPet/watch`); the browser half validates every frame against the same Zod schema before trusting it, and reconnects on a sequence gap rather than acting on half a state.
-- **Settings panel** (`Settings` → `Rainbow border`): enable/disable, flow speed (1–10 s per loop), ring width (1–6 px), color scheme, placement (all sides / top / bottom), reverse flow, and a breathing brightness overlay — plus a **desktop pet** group: show the pet, watch scope (all sessions / current session), animation intensity (full / subtle / off), and pet size (0.6–1.6×). All preferences persist in `localStorage` and apply live.
-
+- **Settings panel** (`Settings` → `Rainbow border`): enable/disable, flow speed (1–10 s per loop), ring width (1–6 px), color scheme, placement (all sides / top / bottom), reverse flow, and a breathing brightness overlay — plus a **desktop pet** group: show the pet, character (five to pick from), watch scope (all sessions / current session), animation intensity (full / subtle / off), and pet size (0.6–1.6×). All preferences persist in `localStorage` and apply live.
 
   ![Settings panel: seven palettes, flow speed, ring width and placement](assets/02-settings-rainbow.png)
 - **Prism in a real host**:
 
-  ![Prism floating on the DSH window's overlay layer](assets/08-pet-live.png)
+  ![Prism: a speech bubble and candy hearts](assets/08-pet-live.png)
 - **Seven color schemes**: classic rainbow, aurora, sunset, peach, ocean, cyberpunk neon (cyan/violet/magenta with a white lamp-flash segment), and *follow theme* — derived from the host brand token via `color-mix`.
 - **Session-state awareness** via the host dock seat: the ring speeds up while the agent is running (4 s → 1.2 s per loop), turns amber with a slow pulse while a tool approval or ask-user prompt is pending, turns red with a fast pulse on send failures or agent errors, and plays a one-loop celebrate flash when a turn completes. Priority: error > attention > running.
 - **Focus boost**: the ring brightens and saturates while the composer has focus, easing back on blur.

@@ -17,7 +17,9 @@
  *   有人滚聊天记录时目光跟着内容走一点。
  * 动画强度三档（全量 / 轻柔 / 关）经 `data-motion` 下发，设置面板可调。
  *
- * 形象是纯 CSS 几何，没有任何外部素材——因此没有第三方形象的授权问题。
+ * 形象是纯 CSS 几何临摹的五月天「吧唧球」简笔风——五颗球是五个可选角色
+ * （红/黄/粉/蓝/绿，`petBall` 偏好 + 右键菜单切换），球色是身份、表情随
+ * 会话状态变化，不使用任何官方素材，因此没有第三方形象的授权问题。
  *
  * @module @kenz1117/dsh-ui-rainbowspeak/client/pet
  */
@@ -29,18 +31,18 @@ import { derivePetState, noticeFromReason, readCurrentSessionId, scopeActivity, 
 import { ENTRANCE_MS, HUM_AFTER_MS, HUM_LINES, humDelay, isRapidPoke, LONG_PRESS_MS, lookVector, PAT_LINES, pickEntrance, pickKey, POKE_LINES, SPIN_LINES, STARTLE_LINES, STATE_LINES, swingAngle, wanderDelay, wanderGaze, type PetEntrance } from './pet-motion.ts'
 import { subscribeFrames, subscribeHealth } from './pet-store.ts'
 import { getPetLocaleRevision, subscribePetLocale, translatePet } from './pet-locale.ts'
-import { PREFS_EVENT, loadPrefs, savePrefs, PET_BASE_SIZE, type RainbowPrefs } from './preferences.ts'
+import { PREFS_EVENT, loadPrefs, savePrefs, PET_BASE_SIZE, type PetBall, type RainbowPrefs } from './preferences.ts'
 import type { RainbowKey } from './locales.ts'
 import type { PetScope } from './pet-state.ts'
 
 /** 瞳孔最大偏移（px）：眼睛挪一点，不挪出眼眶。 */
-const LOOK_MAX = 4.5
+const LOOK_MAX = 5.5
 
 /** 指针静止多久后，瞳孔开始自己闲逛扫视（ms）。 */
 const LOOK_IDLE_MS = 3000
 
-/** 一次扫视后的回中时间（ms）：瞟一眼，看一会儿，目光回巢。 */
-const WANDER_RECOVER_MS = 900
+/** 一次扫视后的回中时间（ms）：瞟一眼，慢慢把目光溜回来——慢回才是丝滑。 */
+const WANDER_RECOVER_MS = 1500
 
 /** 踉跄反应的防抖（ms）：拖动窗口把手会连发 resize，只认停下来的那一下。 */
 const STUMBLE_DEBOUNCE_MS = 220
@@ -94,11 +96,20 @@ const SIZE_OPTIONS: readonly { readonly value: number; readonly key: RainbowKey 
   { value: 1.4, key: 'petMenuSizeLarge' },
 ]
 
+/** 菜单里的五个可选角色（吧唧球）：球色即身份，color 是菜单小色点。 */
+const PET_BALLS: readonly { readonly value: PetBall; readonly key: RainbowKey; readonly color: string }[] = [
+  { value: 'red', key: 'petBallRed', color: '#d9493d' },
+  { value: 'yellow', key: 'petBallYellow', color: '#e3bd3a' },
+  { value: 'pink', key: 'petBallPink', color: '#e288ae' },
+  { value: 'blue', key: 'petBallBlue', color: '#3f97d0' },
+  { value: 'green', key: 'petBallGreen', color: '#2f9e50' },
+]
+
 /** 菜单宽度（px）：贴边修正按它算。 */
 const MENU_WIDTH = 210
 
-/** 菜单估算高度（px）：决定开在上方还是下方。 */
-const MENU_HEIGHT = 150
+/** 菜单估算高度（px）：决定开在上方还是下方（含角色行）。 */
+const MENU_HEIGHT = 190
 
 /** 正在飞的小粒子（心心 / 音符）。 */
 interface Heart {
@@ -731,6 +742,7 @@ export function PetRoot(props: PropsRuntime<'shell.overlay'>): React.ReactElemen
       ref={rootRef}
       className={styles.pet}
       data-state={petState}
+      data-ball={prefs.petBall}
       data-dragging={dragging ? 'true' : 'false'}
       data-remote={remoteHealthy ? 'connected' : 'offline'}
       data-motion={prefs.petMotion}
@@ -786,14 +798,11 @@ export function PetRoot(props: PropsRuntime<'shell.overlay'>): React.ReactElemen
       >
         <span className={styles.motion} ref={motionRef}>
           <span className={styles.body}>
-            <span className={styles.tip} />
             <span className={styles.sheen} />
             <span className={styles.rim} />
             <span className={styles.face}>
               <span className={styles.eyeLeft}><span className={styles.pupil} /><span className={styles.glint} /><span className={styles.glintDot} /><span className={styles.dizzyX} aria-hidden="true" /></span>
               <span className={styles.eyeRight}><span className={styles.pupil} /><span className={styles.glint} /><span className={styles.glintDot} /><span className={styles.dizzyX} aria-hidden="true" /></span>
-              <span className={styles.browLeft} />
-              <span className={styles.browRight} />
               <span className={styles.blushLeft} />
               <span className={styles.blushRight} />
               <span className={styles.mouth}><span className={styles.tongue} /></span>
@@ -815,7 +824,9 @@ export function PetRoot(props: PropsRuntime<'shell.overlay'>): React.ReactElemen
             style={{ left: `${50 + heart.dx / 2}%`, top: `${52 + heart.dy}%`, animationDelay: `${heart.delay}ms` }}
             aria-hidden="true"
           >
-            {heart.char}
+            {heart.char === '♪'
+              ? <span className={styles.note}>{heart.char}</span>
+              : <span className={styles.heartShape} />}
           </span>
         ))}
       </button>
@@ -859,6 +870,24 @@ export function PetRoot(props: PropsRuntime<'shell.overlay'>): React.ReactElemen
                   onClick={() => { patchPrefs({ petScale: option.value }); setMenuOpen(false) }}
                 >
                   {translatePet(option.key)}
+                </button>
+              ))}
+            </div>
+          </div>
+          <div className={styles.menuRow}>
+            <span className={styles.menuLabel}>{translatePet('petBall')}</span>
+            <div className={styles.menuChips}>
+              {PET_BALLS.map((ball) => (
+                <button
+                  key={ball.value}
+                  type="button"
+                  role="menuitemradio"
+                  aria-checked={prefs.petBall === ball.value}
+                  className={prefs.petBall === ball.value ? `${styles.chip} ${styles.chipActive}` : styles.chip}
+                  onClick={() => { patchPrefs({ petBall: ball.value }); setMenuOpen(false) }}
+                >
+                  <span className={styles.dot} style={{ background: ball.color }} aria-hidden="true" />
+                  {translatePet(ball.key)}
                 </button>
               ))}
             </div>

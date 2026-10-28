@@ -42,26 +42,24 @@ const REACTIONS = [
  * 一只桌宠的静态标记（与组件的 DOM 结构一致）。
  * @param state - 状态名。
  * @param reaction - 额外的 data 反应标记（dizzy / pat）；无则空串。
+ * @param ball - 角色球色（data-ball）；默认红球。
  * @returns 标记字符串。
  */
-function petMarkup(state, reaction = '') {
+function petMarkup(state, reaction = '', ball = 'red') {
   const reactionAttr = reaction === '' ? ''
     : reaction.includes(':') ? ` data-${reaction.split(':')[0]}="${reaction.split(':')[1]}"`
       : ` data-${reaction}="true"`
-  return `<div class="pet" data-state="${state}" data-dragging="false" data-remote="connected" data-motion="full"${reactionAttr}>
+  return `<div class="pet" data-state="${state}" data-ball="${ball}" data-dragging="false" data-remote="connected" data-motion="full"${reactionAttr}>
   <span class="aura"></span>
   <span class="bubble" data-visible="false"></span>
   <button type="button" class="hit">
     <span class="motion">
       <span class="body">
-        <span class="tip"></span>
         <span class="sheen"></span>
         <span class="rim"></span>
         <span class="face">
           <span class="eyeLeft"><span class="pupil"></span><span class="glint"></span><span class="glintDot"></span><span class="dizzyX"></span></span>
           <span class="eyeRight"><span class="pupil"></span><span class="glint"></span><span class="glintDot"></span><span class="dizzyX"></span></span>
-          <span class="browLeft"></span>
-          <span class="browRight"></span>
           <span class="blushLeft"></span>
           <span class="blushRight"></span>
           <span class="mouth"><span class="tongue"></span></span>
@@ -83,6 +81,9 @@ const cells = STATES.map(([state, label]) =>
 ).join('\n')
 const reactionCells = REACTIONS.map(([reaction, label]) =>
   `<figure class="cell"><div class="stage">${petMarkup('resting', reaction)}</div><figcaption>${label} · <code>${reaction}</code></figcaption></figure>`,
+).join('\n')
+const ballCells = [['red', '红红'], ['yellow', '黄黄'], ['pink', '粉粉'], ['blue', '蓝蓝'], ['green', '绿绿']].map(([ball, label]) =>
+  `<figure class="cell"><div class="stage">${petMarkup('resting', '', ball)}</div><figcaption>${label} · <code>${ball}</code></figcaption></figure>`,
 ).join('\n')
 
 const html = `<!doctype html>
@@ -108,6 +109,10 @@ code { color: #999; }
 <h1>小虹 · 六种表情</h1>
 <div class="grid">
 ${cells}
+</div>
+<h1 style="margin-top:20px">五个角色</h1>
+<div class="grid">
+${ballCells}
 </div>
 <h1 style="margin-top:20px">一次性反应</h1>
 <div class="grid">

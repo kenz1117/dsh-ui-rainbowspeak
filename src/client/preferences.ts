@@ -22,6 +22,9 @@ export type RainbowSide = 'all' | 'top' | 'bottom'
 /** 桌宠动画强度：全量 / 轻柔（幅度收敛）/ 关（只保留表情切换）。 */
 export type PetMotion = 'full' | 'subtle' | 'off'
 
+/** 桌宠角色：五颗吧唧球是五个独立角色，球色是身份、不随状态变化。 */
+export type PetBall = 'red' | 'yellow' | 'pink' | 'blue' | 'green'
+
 /** 全部用户偏好。 */
 export interface RainbowPrefs {
   /** 总开关；关闭时样式表隐藏伪元素（不移除插件）。 */
@@ -46,6 +49,8 @@ export interface RainbowPrefs {
   petScale: number
   /** 桌宠动画强度。 */
   petMotion: PetMotion
+  /** 桌宠角色（哪颗球）；表情仍随会话状态变化。 */
+  petBall: PetBall
   /** 桌宠左上角横坐标（视口 px）；`null` 表示用默认落位。 */
   petX: number | null
   /** 桌宠左上角纵坐标（视口 px）；`null` 表示用默认落位。 */
@@ -68,6 +73,7 @@ export const DEFAULT_PREFS: Readonly<RainbowPrefs> = Object.freeze({
   petScope: 'all',
   petScale: 1,
   petMotion: 'full',
+  petBall: 'red',
   petX: null,
   petY: null,
 })
@@ -76,6 +82,7 @@ const PALETTES: readonly RainbowPalette[] = ['rainbow', 'aurora', 'sunset', 'pea
 const SIDES: readonly RainbowSide[] = ['all', 'top', 'bottom']
 const PET_SCOPES: readonly PetScope[] = ['all', 'current']
 const PET_MOTIONS: readonly PetMotion[] = ['full', 'subtle', 'off']
+const PET_BALLS: readonly PetBall[] = ['red', 'yellow', 'pink', 'blue', 'green']
 const STORAGE_KEY = 'dsh-ui-rainbowspeak.prefs'
 
 /**
@@ -128,6 +135,9 @@ export function clampPrefs(raw: unknown): RainbowPrefs {
     petMotion: PET_MOTIONS.includes(source.petMotion as PetMotion)
       ? source.petMotion as PetMotion
       : DEFAULT_PREFS.petMotion,
+    petBall: PET_BALLS.includes(source.petBall as PetBall)
+      ? source.petBall as PetBall
+      : DEFAULT_PREFS.petBall,
     petX: clampCoord(source.petX),
     petY: clampCoord(source.petY),
   }

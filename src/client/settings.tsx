@@ -10,7 +10,7 @@ import { Switch } from '@deepseek-ai/dsh-client-ui-primitives'
 import type { PropsLocale } from '@deepseek-ai/dsh-client-ui-slots'
 import styles from './settings.module.css'
 import { NS, type RainbowKey } from './locales.ts'
-import { DEFAULT_PREFS, loadPrefs, savePrefs, type PetMotion, type RainbowPalette, type RainbowPrefs, type RainbowSide } from './preferences.ts'
+import { DEFAULT_PREFS, loadPrefs, savePrefs, type PetBall, type PetMotion, type RainbowPalette, type RainbowPrefs, type RainbowSide } from './preferences.ts'
 import { PALETTE_STOPS } from './palettes.ts'
 import type { PetScope } from './pet-state.ts'
 
@@ -43,6 +43,15 @@ const PET_MOTION_OPTIONS: readonly { readonly value: PetMotion; readonly key: Ra
   { value: 'full', key: 'petMotionFull' },
   { value: 'subtle', key: 'petMotionSubtle' },
   { value: 'off', key: 'petMotionOff' },
+]
+
+/** 桌宠角色的选项表（五颗吧唧球：色标与 pet.module.css 的球色渐变一致）。 */
+const PET_BALL_OPTIONS: readonly { readonly value: PetBall; readonly key: RainbowKey; readonly stops: string }[] = [
+  { value: 'red', key: 'petBallRed', stops: '#ea6a5b, #d9493d, #bd352b' },
+  { value: 'yellow', key: 'petBallYellow', stops: '#f0d264, #e3bd3a, #c7a52e' },
+  { value: 'pink', key: 'petBallPink', stops: '#f0a3c3, #e288ae, #c96a92' },
+  { value: 'blue', key: 'petBallBlue', stops: '#5db1e0, #3f97d0, #2f7cb2' },
+  { value: 'green', key: 'petBallGreen', stops: '#4db86c, #2f9e50, #237a3c' },
 ]
 
 /**
@@ -222,6 +231,28 @@ export function RainbowSettingsSection({ t }: PropsLocale<typeof NS>): React.Rea
                 onClick={() => { update(prefs, { petScope: option.value }, commit) }}
               >
                 {t(option.key)}
+              </button>
+            ))}
+          </div>
+        </div>
+
+        <div className={styles.stackRow}>
+          <span className={styles.label}>{t('petBall')}</span>
+          <span className={styles.desc}>{t('petBallNote')}</span>
+          <div className={styles.chipGrid}>
+            {PET_BALL_OPTIONS.map((option) => (
+              <button
+                key={option.value}
+                type="button"
+                className={prefs.petBall === option.value ? `${styles.chip} ${styles.chipActive}` : styles.chip}
+                onClick={() => { update(prefs, { petBall: option.value }, commit) }}
+              >
+                <span
+                  className={styles.swatch}
+                  style={{ background: `radial-gradient(circle at 33% 27%, ${option.stops})` }}
+                  aria-hidden="true"
+                />
+                <span className={styles.chipLabel}>{t(option.key)}</span>
               </button>
             ))}
           </div>

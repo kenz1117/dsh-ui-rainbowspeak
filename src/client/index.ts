@@ -189,6 +189,9 @@ html[data-rainbow-off] [data-composer-card]::before {
 /** style 标签的 data-plugin 标识（宿主按此归属插件样式，卸载时清理）。 */
 const PLUGIN_ID = '@kenz1117/dsh-ui-rainbowspeak'
 
+/** 构建标识：排查「宿主跑的是旧包」时，在宿主控制台按这行确认加载的是哪一版。 */
+const CLIENT_BUILD = '2026-10-28.6 (css candy hearts)'
+
 /** 必需服务：slots 渲染接线 + locale 词典注册。 */
 export const inject = ['slots', 'locale']
 
@@ -208,6 +211,7 @@ export function apply(ctx: Context): void {
 }
 
 function applyInner(ctx: Context): void {
+  console.info(`[dsh-ui-rainbowspeak] client build ${CLIENT_BUILD}`)
   ctx.effect(() => {
     const tag = document.createElement('style')
     tag.dataset.plugin = PLUGIN_ID

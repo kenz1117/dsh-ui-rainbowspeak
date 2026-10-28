@@ -44,6 +44,13 @@ export type RainbowKey =
   | 'petMotionFull'
   | 'petMotionSubtle'
   | 'petMotionOff'
+  | 'petBall'
+  | 'petBallNote'
+  | 'petBallRed'
+  | 'petBallYellow'
+  | 'petBallPink'
+  | 'petBallBlue'
+  | 'petBallGreen'
   | 'petName'
   | 'petResting'
   | 'petWorking'
@@ -122,6 +129,13 @@ export const zh: Record<RainbowKey, string> = {
   petMotionFull: '全量',
   petMotionSubtle: '轻柔',
   petMotionOff: '关',
+  petBall: '角色',
+  petBallNote: '五颗球是五个角色：表情随状态变化，球色不变',
+  petBallRed: '红红',
+  petBallYellow: '黄黄',
+  petBallPink: '粉粉',
+  petBallBlue: '蓝蓝',
+  petBallGreen: '绿绿',
   petName: '小虹',
   petResting: '陪你待着',
   petWorking: '在忙，稍等',
@@ -201,6 +215,13 @@ export const en: Record<RainbowKey, string> = {
   petMotionFull: 'Full',
   petMotionSubtle: 'Subtle',
   petMotionOff: 'Off',
+  petBall: 'Character',
+  petBallNote: 'Five balls, five characters: expressions change with state, the color never does',
+  petBallRed: 'Red',
+  petBallYellow: 'Yellow',
+  petBallPink: 'Pink',
+  petBallBlue: 'Blue',
+  petBallGreen: 'Green',
   petName: 'Prism',
   petResting: 'Here with you',
   petWorking: 'Busy, one moment',

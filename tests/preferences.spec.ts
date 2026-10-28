@@ -50,6 +50,14 @@ describe('clampPrefs', () => {
     expect(clampPrefs({ petMotion: 3 }).petMotion).toBe('full')
   })
 
+  it('桌宠角色五球合法，非法回落红球', () => {
+    for (const ball of ['yellow', 'pink', 'blue', 'green'] as const) {
+      expect(clampPrefs({ petBall: ball }).petBall).toBe(ball)
+    }
+    expect(clampPrefs({ petBall: 'purple' }).petBall).toBe('red')
+    expect(clampPrefs({ petBall: 2 }).petBall).toBe('red')
+  })
+
   it('桌宠坐标只接受有限数，畸形值回落默认落位', () => {
     expect(clampPrefs({ petX: 12, petY: 34 }).petX).toBe(12)
     expect(clampPrefs({ petX: 'left', petY: Number.NaN }).petX).toBeNull()

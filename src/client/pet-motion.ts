@@ -106,7 +106,7 @@ export function lookVector(dx: number, dy: number, max: number): { x: number; y:
 }
 
 /** 闲逛扫视的最大偏移（px）：比指针跟随更收敛——是「瞟一眼」，不是「盯着」。 */
-export const WANDER_MAX = 2.6
+export const WANDER_MAX = 3.2
 
 /**
  * 随机扫视目标：指针长时间不动时，瞳孔偶尔自己瞟向一个随机方向。
