@@ -410,7 +410,7 @@ pnpm bench:anim        # 构建页面 + 跑四组变体 × 3 次重复
 | 渲染 | render 里读 `Date.now()`（显隐滞留） | 显隐由状态 + 定时器驱动 |
 | 动效语言 | 14 处散落的时长与曲线 | **token**：时长三档 + 曲线三条，入场用带回弹的曲线 |
 | 轻柔档 | 只收了几处，其余全量 | 待机/打盹/光环/高光/眨眼全收一档 |
-| 气泡 | `nowrap`（长文案顶成长条） | 可折行 |
+| 气泡 | `nowrap`（长文案顶成长条） | `width: max-content` + `max-width` 封顶，长句在 220px 内折行 |
 | 光环 | 过渡 `background`（逐帧重模糊） | 只过渡透明度（换色变瞬时，模糊只算一次） |
 | 样式隔离 | 无 | `contain: layout style`（不加 `paint`——气泡与菜单要能溢出） |
 | `will-change` | `.motion`/`.body` 常驻 | `.body` 保留（几乎一直在动），`.swing`/`.squash` 按需 |
@@ -422,20 +422,30 @@ pnpm bench:anim        # 构建页面 + 跑四组变体 × 3 次重复
 1. **几何盒逐个对照**：两版渲染后读取眼睛/瞳孔/嘴巴的 `getBoundingClientRect()`，逐状态对照。
    最终：working / waiting / error / sleeping 四态的眼睛与瞳孔盒**完全一致**（0.01px 级），嘴巴差异 ≤ 0.5px。
 2. **整页逐像素比对**（`pnpm bench:refactor-visual`）：差异占比 **0.129%**、平均通道差 **0.53**——剩下的全是亚像素抗锯齿（1px 宽的白眼白边缘），1:1 观看不可辨。
+   （气泡另有一轮单独核对：短句气泡改造前后同为 110×34，长句从「顶出 220px 上限的一行」变成「220px 内折两行」。）
 3. **跑马灯的观感与语义**：
    - 观感（`verify-rainbow.mjs`）：改造前后的色相差是**恒定相位**（均值 2.6°、标准差 1.4°，即两次截图时刻差）→ 等价 ✓
    - 语义（`verify-palettes.mjs`）：审批等待全程稳定在琥珀（36–42°，漂移 6°）、出错全程稳定在红（漂移 0°）→ 颜色信号没被破坏 ✓
 
-### 7.3 实施中撞到的三个真问题
+### 7.3 实施中撞到的四个真问题
 
-写下来是因为它们都不是「读代码能看出来」的：
+写下来是因为它们都不是「读代码能看出来」的——四条都是「语义改对了，却踩到布局引擎的隐式规则」：
 
 1. **Chromium 会把小数描边宽向下取整到整数像素**。`border: 1.714px` 实际渲染成 1px，导致第一版换算整体偏了 2px。解法：描边一律用整数 px，比例差用 scale 补。
 2. **`translate` 属性的百分比基准是元素的布局盒（border box），不是缩放后的包围盒**。按包围盒换算会差 3–5px。
 3. **被缩放的元素里，渐变会跟着变形**。镜片（白色眼白）是径向渐变，默认半径取「最远角」——盒宽一变，白核的形状就变（实测差 1px）。解法：渐变半径改用显式百分比。
+4. **`overflow-wrap: anywhere` 会把绝对定位气泡的宽度压成一个字**。气泡改成可折行后，它竖成了一条（每个字一行）——因为 `anywhere` 会参与「最小内容宽度」的计算，绝对定位元素的收缩宽度就取了那个最小值。解法：气泡宽度改成 `width: max-content` + `max-width` 封顶，词内换行用 `break-word`（它不参与最小内容宽度计算）。
 
 ### 7.4 交付状态
 
 - `pnpm test` 70 项全绿、`pnpm typecheck` 干净、`pnpm bundle` 通过；
 - `pnpm bench:anim` / `pnpm bench:pet-visual` / `pnpm bench:refactor-visual` 三条命令可复现全部结论；
 - 产品代码改动集中在：`src/client/index.ts`（跑马灯样式与接线）、`src/client/rainbow-ring.ts`（新）、`src/client/pet.tsx`（瞳孔直写、档位、渲染纯度、分层）、`src/client/pet.module.css`（几何 transform、动效 token、档位补全）。
+
+### 7.5 发布
+
+**0.4.0**（2026-10-30）：GitHub `main` + tag `v0.4.0`；npm `@kenz1117/dsh-ui-rainbowspeak@0.4.0`，`latest` 已指向它。真实安装验证：装到的产物含旋转图层实现、旧 `@property` 角度插值 0 处残留、node 半边可正常 require。
+
+> npm 上的历史是 `0.0.1 / 0.0.2 / 0.1.0 / 0.4.0`——**0.2.x 与 0.3.0 只打了 git tag，从未发布到 npm**，所以 npm 用户是从 0.1.0 直接跳到 0.4.0（版本号有缺口，不影响安装）。
+>
+> 发布环境注意：本机 npm 走本地代理 `127.0.0.1:7897`，代理会把 `registry.npmjs.org` 重写到 **npmmirror 镜像**，而镜像同步有滞后——发布本身发往官方 registry（直连 API 已确认），但本地 `npm view` / `npm i` 在镜像同步前仍会看到旧的 `latest`。验证安装要绕开代理：`npm_config_proxy= npm i <pkg> --registry=https://registry.npmjs.org`。
