@@ -54,6 +54,8 @@ function petMarkup(state, reaction = '', ball = 'red') {
   <span class="bubble" data-visible="false"></span>
   <button type="button" class="hit">
     <span class="motion">
+      <span class="swing">
+        <span class="squash">
       <span class="body">
         <span class="sheen"></span>
         <span class="rim"></span>
@@ -65,6 +67,8 @@ function petMarkup(state, reaction = '', ball = 'red') {
           <span class="mouth"><span class="tongue"></span></span>
         </span>
         <span class="sweat"></span>
+      </span>
+        </span>
       </span>
     </span>
     <span class="shock"></span>

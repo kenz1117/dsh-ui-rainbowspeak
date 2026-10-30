@@ -1,0 +1,1435 @@
+/**
+ * 桌宠「小虹」：纯 CSS 几何临摹的五月天「吧唧球」风格彩色圆球。
+ *
+ * 分层是有意的，因为三层的「谁拥有 transform」必须分清：
+ * - `.motion` —— **JS 拥有**：挤压回弹、拖拽摆动（直接写 style）；
+ * - `.body`  —— **CSS 拥有**：状态动画（呼吸 / 忙碌 / 庆祝 / 抖动 / 打盹）；
+ * - `.eye`   —— 眨眼；`.pupil` 用 `--pet-look-x/y` 跟随指针。
+ *
+ * 形象逻辑：五颗球 = 五个可选角色（红/黄/粉/蓝/绿，经 `petBall` 偏好
+ * 选择、`data-ball` 下发）——球色是身份，不随状态变化；表情（眼形/
+ * 瞳色/嘴形/眼镜/汗滴）才随会话状态切换。吧唧球的脸没有眉毛呆毛，
+ * 情绪全靠球色 + 眼形瞳色 + 嘴形表达。打盹是当前球色的调暗版。
+ *
+ * 质感按「光滑胶皮球」叠层：`.sheen` 负责球面反光（大高光 + 小星点 +
+ * 底部暗部），`.rim` 负责轮廓（外圈深色描边让浅色主题下也勾得住形，
+ * 内圈亮边勾体积）。
+ *
+ * 配色：五个球色是画作，固定不变；气泡与菜单走宿主 `--dsw-alias-*`
+ * 令牌，深浅主题自动跟随。
+ */
+
+.pet {
+  position: fixed;
+  z-index: 40;
+  /* 覆盖层本身是点击穿透的：只有角色本体重新接回指针事件。 */
+  pointer-events: none;
+  width: var(--dsh-pet-size, 104px);
+  height: var(--dsh-pet-size, 104px);
+  touch-action: none;
+  user-select: none;
+  -webkit-user-select: none;
+  /* 瞳孔跟随指针的位移（JS 直接写这里）。 */
+  --pet-look-x: 0px;
+  --pet-look-y: 0px;
+}
+
+.hit {
+  all: unset;
+  box-sizing: border-box;
+  position: absolute;
+  inset: 0;
+  display: flex;
+  align-items: flex-end;
+  justify-content: center;
+  cursor: grab;
+  pointer-events: auto;
+  touch-action: none;
+  border-radius: 50%;
+  /* 被拎起来时整只轻微放大——「被抓在手心」的捏起感。 */
+  transition: transform 0.22s cubic-bezier(0.2, 0.9, 0.3, 1);
+}
+
+.pet[data-dragging='true'] .hit {
+  transform: scale(1.045);
+}
+
+.hit:active {
+  cursor: grabbing;
+}
+
+.hit:focus-visible {
+  outline: 2px solid var(--dsw-alias-brand-primary, light-dark(#0f1115, #f9fafb));
+  outline-offset: 4px;
+}
+
+/* JS 形变层：挤压回弹与拖拽摆动都写在这里。 */
+.motion {
+  position: relative;
+  display: block;
+  width: 100%;
+  height: 100%;
+  transform-origin: 50% 90%;
+  will-change: transform;
+}
+
+/* 状态光环：随状态换色，庆祝时更亮。 */
+.aura {
+  position: absolute;
+  inset: 4%;
+  border-radius: 50%;
+  background: radial-gradient(circle, var(--pet-aura, rgba(217, 73, 61, 0.22)) 0%, transparent 70%);
+  filter: blur(9px);
+  opacity: 0.8;
+  transition: background 0.3s ease, opacity 0.3s ease;
+  pointer-events: none;
+  animation: pet-aura 3.6s ease-in-out infinite;
+}
+
+.body {
+  position: relative;
+  display: block;
+  width: 80%;
+  height: 80%;
+  margin: 0 auto 8%;
+  /* 宿主的全局后代规则（`button span` 一类）会压过单哈希类，把球的
+     border-radius 改成宿主的圆角矩形——旧水滴版早已被改成圆角方块，
+     只是水滴看不出来；球一眼就穿帮。对策：球面全部画在 ::before 上
+     ——伪元素不匹配 `button span` 这类元素选择器，宿主够不着；
+     常规防护（::before 的 50% 半径 + sheen/rim 的 !important）兜住其余层。
+     注意不要用 clip-path 钉形状：裁剪加在带循环动画的本体上，缩放帧
+     会把 rim 轮廓光栅化成球面「缝线」（实测）。 */
+  border-radius: 50% !important;
+  /* 投影挂在本体上：球面移到了 ::before（见其注释）。本体形状被宿主
+     改写也只影响这层柔影的轮廓，18px 模糊下方圆难辨。 */
+  box-shadow: 0 8px 18px light-dark(#0f111526, #00000059);
+  transform-origin: 50% 90%;
+  will-change: transform;
+  /* 悬停时球面微微提亮——「注意到你了」的一层反应，不是动效。 */
+  transition: filter 0.25s ease;
+}
+
+/* 球面本体（红球默认色）：伪元素层 + 双保险形状。
+   一、四条 longhand 半径——只改写 `border-radius:` shorthand 的宿主样式碰不到；
+   二、clip-path 出正圆——与 radius 体系完全无关，宿主改写 radius 也无效。
+   clip 必须加在「自身无动画」的伪元素上：clip 与元素自身动画叠加会在
+   缩放帧产生光栅化接缝（实测），而伪元素只随 body 的动画整体移动。
+   投影因此上移到 .body 本体（clip 会裁掉伪元素外面的阴影）。 */
+.body::before {
+  content: '';
+  position: absolute;
+  inset: 0;
+  border-top-left-radius: 50% !important;
+  border-top-right-radius: 50% !important;
+  border-bottom-left-radius: 50% !important;
+  border-bottom-right-radius: 50% !important;
+  clip-path: circle(50%);
+  background: radial-gradient(circle at 33% 27%, #ea6a5b 0%, #d9493d 52%, #bd352b 100%);
+}
+
+.pet:hover .body {
+  filter: brightness(1.045);
+}
+
+/* 五个角色的球色：`data-ball` 选择，径向渐变拉体积（红球是上面的默认）。 */
+.pet[data-ball='yellow'] .body::before {
+  background: radial-gradient(circle at 33% 27%, #f0d264 0%, #e3bd3a 52%, #c7a52e 100%);
+}
+
+.pet[data-ball='pink'] .body::before {
+  background: radial-gradient(circle at 33% 27%, #f0a3c3 0%, #e288ae 52%, #c96a92 100%);
+}
+
+.pet[data-ball='blue'] .body::before {
+  background: radial-gradient(circle at 33% 27%, #5db1e0 0%, #3f97d0 52%, #2f7cb2 100%);
+}
+
+.pet[data-ball='green'] .body::before {
+  background: radial-gradient(circle at 33% 27%, #4db86c 0%, #2f9e50 52%, #237a3c 100%);
+}
+
+/* 球面反光：让圆球有体积感。
+   五层光——左上大高光（主反射）、高光里的小星点（第二反射）、
+   右下暗部（球背光面）、底缘接触暗影（球「坐」在地上的重量）、
+   再往上一线地面反光（桌面把光弹回来）。
+   渐变终点一律用同色相的 0 alpha（`transparent` 会经 rgba(0,0,0,0)
+   插值出灰边，高光就「贴」上去了）。
+   高光整体跟着呼吸轻微漂移（pet-sheen），球面就有了「活的反光」。 */
+.sheen {
+  position: absolute;
+  inset: 0;
+  /* 同 .body::before：longhand + clip 双保险。 */
+  border-top-left-radius: 50% !important;
+  border-top-right-radius: 50% !important;
+  border-bottom-left-radius: 50% !important;
+  border-bottom-right-radius: 50% !important;
+  clip-path: circle(50%);
+  background:
+    radial-gradient(40% 28% at 31% 19%, rgba(255, 255, 255, 0.5), rgba(255, 255, 255, 0) 100%),
+    radial-gradient(11% 8% at 24% 12%, rgba(255, 255, 255, 0.92), rgba(255, 255, 255, 0) 100%),
+    radial-gradient(84% 58% at 68% 94%, rgba(15, 20, 30, 0.18), rgba(15, 20, 30, 0) 100%),
+    radial-gradient(52% 20% at 50% 100%, rgba(15, 20, 30, 0.1), rgba(15, 20, 30, 0) 100%),
+    radial-gradient(74% 24% at 50% 105%, rgba(255, 255, 255, 0.13), rgba(255, 255, 255, 0) 100%);
+  pointer-events: none;
+  animation: pet-sheen 5.6s ease-in-out infinite;
+}
+
+/* 轮廓：外圈深色细描边（浅色主题下把形从亮背景里勾出来），
+   内圈亮边（玻璃边缘的全反射）。 */
+.rim {
+  position: absolute;
+  inset: 0;
+  /* 同 .body::before：longhand + clip 双保险，轮廓环被改写也裁回正圆。 */
+  border-top-left-radius: 50% !important;
+  border-top-right-radius: 50% !important;
+  border-bottom-left-radius: 50% !important;
+  border-bottom-right-radius: 50% !important;
+  clip-path: circle(50%);
+  box-shadow:
+    0 0 0 1px light-dark(#0f111545, #00000066),
+    inset 0 0 0 1.5px rgba(255, 255, 255, 0.42);
+  pointer-events: none;
+}
+
+.face {
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+}
+
+/* 眼睛：白眼白 + 彩色圆瞳（吧唧球的脸），瞳孔跟着指针挪。 */
+.eyeLeft,
+.eyeRight {
+  position: absolute;
+  top: 37%;
+  width: 18%;
+  height: 22%;
+  border-radius: 50%;
+  background: radial-gradient(circle at 50% 32%, #ffffff 0%, rgba(255, 255, 255, 0.97) 62%, rgba(226, 228, 220, 0.95) 100%);
+  box-shadow: inset 0 1.5px 2px rgba(15, 17, 21, 0.12);
+  overflow: hidden;
+  transform-origin: center;
+  animation: pet-blink 7.4s ease-in-out infinite;
+  /* 状态换脸时眼睛渐变过渡（大小/位置/描边/镜圈），不是瞬切——表情是「变」过去的。 */
+  transition:
+    width 0.32s ease, height 0.32s ease, top 0.32s ease,
+    border-color 0.32s ease, border-width 0.32s ease,
+    border-radius 0.32s ease, background-color 0.32s ease;
+}
+
+.eyeLeft {
+  left: 25%;
+}
+
+.eyeRight {
+  right: 25%;
+}
+
+.pupil {
+  position: absolute;
+  left: 50%;
+  top: 50%;
+  width: 66%;
+  height: 66%;
+  margin: -33% 0 0 -33%;
+  border-radius: 50%;
+  /* 红球的绿瞳：吧唧球默认脸的招牌配色。状态换脸时由状态段覆盖。 */
+  background: radial-gradient(circle at 42% 36%, #55bd6e 0%, #2f9e50 62%);
+  transform: translate(var(--pet-look-x), var(--pet-look-y));
+  /* 丝滑的关键：视线永远在「滑」，不在「跳」。曲线要长而软，
+     指针跟随像目光被牵过去，扫视像目光自己溜达过去。 */
+  transition:
+    transform 0.32s cubic-bezier(0.25, 0.75, 0.3, 1),
+    width 0.3s ease, height 0.3s ease, margin 0.3s ease;
+}
+
+.glint {
+  position: absolute;
+  left: 20%;
+  top: 14%;
+  width: 32%;
+  height: 32%;
+  border-radius: 50%;
+  background: rgba(255, 255, 255, 0.92);
+  transform: translate(var(--pet-look-x), var(--pet-look-y));
+  transition: transform 0.32s cubic-bezier(0.25, 0.75, 0.3, 1);
+}
+
+/* 第二高光：右下小星点，随瞳孔一起挪。 */
+.glintDot {
+  position: absolute;
+  right: 16%;
+  bottom: 12%;
+  width: 15%;
+  height: 15%;
+  border-radius: 50%;
+  background: rgba(255, 255, 255, 0.85);
+  transform: translate(var(--pet-look-x), var(--pet-look-y));
+  transition: transform 0.32s cubic-bezier(0.25, 0.75, 0.3, 1);
+}
+
+/* 各角色的招牌瞳色（参考图）：红球绿瞳（默认）、黄球红瞳、粉球蓝瞳、
+   蓝球深瞳、绿球橙瞳。放在状态段之前——出错橙瞳等状态瞳色靠源码顺序
+   压过这里的默认。 */
+.pet[data-ball='yellow'] .pupil {
+  background: radial-gradient(circle at 42% 36%, #e06a5b 0%, #cf4436 62%);
+}
+
+.pet[data-ball='pink'] .pupil {
+  background: radial-gradient(circle at 42% 36%, #5db1e0 0%, #3f97d0 62%);
+}
+
+.pet[data-ball='blue'] .pupil {
+  background: radial-gradient(circle at 42% 36%, #4a5058 0%, light-dark(#23272c, #0d0f12) 62%);
+}
+
+.pet[data-ball='green'] .pupil {
+  background: radial-gradient(circle at 42% 36%, #f6a04c 0%, #e07f2e 62%);
+}
+
+/* 腮红：radial 晕染而非实心块——像皮下透出来的红，边缘必须消失于无形。 */
+.blush {
+  position: absolute;
+  top: 56%;
+  width: 19%;
+  height: 11%;
+  border-radius: 50%;
+  background: radial-gradient(circle, rgba(255, 122, 152, 0.52) 0%, rgba(255, 122, 152, 0) 72%);
+  opacity: 0.45;
+  transition: opacity 0.25s ease, transform 0.25s ease;
+}
+
+.blushLeft {
+  left: 13%;
+}
+
+.blushRight {
+  right: 13%;
+}
+
+/* 嘴：默认是「撇嘴」——一根微倾的短棒 + 左端往下收的小钩，
+   红球默认脸的傲娇细节。状态换脸时整个换形状（见状态段）。 */
+.mouth {
+  position: absolute;
+  top: 62%;
+  left: 50%;
+  width: 13%;
+  height: 4%;
+  margin-left: -6.5%;
+  border-radius: 3px;
+  background: light-dark(#20242a, #101214);
+  transform: rotate(-7deg);
+  transition:
+    transform 0.3s ease, border-radius 0.3s ease, height 0.3s ease,
+    width 0.3s ease, margin 0.3s ease, background-color 0.3s ease;
+}
+
+.pet[data-state='resting'] .mouth::before {
+  content: '';
+  position: absolute;
+  left: -16%;
+  top: 28%;
+  width: 42%;
+  height: 3px;
+  border-radius: 3px;
+  background: inherit;
+  transform: rotate(48deg);
+  transform-origin: right center;
+}
+
+/* 舌头：庆祝大笑时从嘴底露出一小片。 */
+.tongue {
+  position: absolute;
+  left: 50%;
+  bottom: 0;
+  width: 40%;
+  height: 42%;
+  margin-left: -20%;
+  border-radius: 46% 46% 52% 52%;
+  background: #ff8787;
+  display: none;
+}
+
+/* 影子：径向两层衰减——中心实、边缘散，比平涂一块更贴「软着地」。 */
+.shadow {
+  position: absolute;
+  bottom: 2%;
+  left: 50%;
+  width: 44%;
+  height: 6%;
+  margin-left: -22%;
+  border-top-left-radius: 50% !important;
+  border-top-right-radius: 50% !important;
+  border-bottom-left-radius: 50% !important;
+  border-bottom-right-radius: 50% !important; /* 同上：影子是椭圆，longhand + 裁剪双保险。 */
+  clip-path: ellipse(50% 50%);
+  background: radial-gradient(closest-side, light-dark(#0f111533, #00000059) 0%, light-dark(#0f111514, #0000002e) 62%, light-dark(#0f111500, #00000000) 100%);
+  filter: blur(2px);
+  pointer-events: none;
+  transition: transform 0.2s ease, opacity 0.2s ease;
+}
+
+/* 说话气泡：状态一句话，悬停 / 被戳 / 状态突变时出现。
+   `--pet-edge-shift` 是贴边修正量：宠物靠边时整体往里推，别被裁掉。
+   出现时从球顶轻轻「顶」出来（上移 + 微放大），不是干巴巴地淡入。 */
+.bubble {
+  position: absolute;
+  left: 50%;
+  bottom: 94%;
+  transform: translateX(calc(-50% + var(--pet-edge-shift, 0px))) translateY(6px) scale(0.94);
+  transform-origin: 50% 100%;
+  max-width: 220px;
+  padding: 7px 12px;
+  border-radius: 14px;
+  background: var(--dsw-alias-bg-module-platform, light-dark(#f9fafb, #353638));
+  border: 1px solid var(--dsw-alias-border-l1, light-dark(#0000000a, #ffffff0f));
+  box-shadow: 0 4px 12px light-dark(#0f111526, #00000059);
+  color: var(--dsw-alias-label-primary, light-dark(#0f1115, #f9fafb));
+  font-size: 12px;
+  line-height: 18px;
+  white-space: nowrap;
+  opacity: 0;
+  pointer-events: none;
+  transition: opacity 0.18s ease, transform 0.18s cubic-bezier(0.2, 0.9, 0.3, 1);
+}
+
+.bubble[data-visible='true'] {
+  opacity: 1;
+  transform: translateX(calc(-50% + var(--pet-edge-shift, 0px)));
+}
+
+.bubble::after {
+  content: '';
+  position: absolute;
+  top: 100%;
+  left: 50%;
+  width: 8px;
+  height: 8px;
+  margin-left: -4px;
+  background: inherit;
+  border-right: 1px solid var(--dsw-alias-border-l1, light-dark(#0000000a, #ffffff0f));
+  border-bottom: 1px solid var(--dsw-alias-border-l1, light-dark(#0000000a, #ffffff0f));
+  transform: translateY(-5px) rotate(45deg);
+}
+
+/* 被戳时的冲击波环。 */
+.shock {
+  position: absolute;
+  left: 50%;
+  top: 50%;
+  width: 40%;
+  height: 40%;
+  margin: -20% 0 0 -20%;
+  border-radius: 50%;
+  border: 2px solid rgba(255, 255, 255, 0.85);
+  opacity: 0;
+  pointer-events: none;
+  animation: pet-shock 0.5s ease-out 1;
+}
+
+.sparkles {
+  position: absolute;
+  inset: 0;
+  display: none;
+  pointer-events: none;
+}
+
+.sparkle {
+  position: absolute;
+  color: #ffc94d;
+  font-size: 16px;
+  line-height: 1;
+}
+
+.sweat {
+  position: absolute;
+  top: 24%;
+  right: 9%;
+  width: 10%;
+  height: 14%;
+  border-radius: 50% 50% 50% 50% / 62% 62% 38% 38%;
+  background: #74c0fc;
+  box-shadow: inset -1px -2px 2px rgba(24, 100, 170, 0.35);
+  display: none;
+  pointer-events: none;
+}
+
+.zzz {
+  position: absolute;
+  top: 2%;
+  right: 10%;
+  font-size: 12px;
+  font-weight: 700;
+  letter-spacing: 1px;
+  color: var(--dsw-alias-label-secondary, light-dark(#61666b, #cfd3d6));
+  display: none;
+  pointer-events: none;
+}
+
+/* 被戳时冒出的小心心：纯 CSS 糖果心（旋转方块 + 双圆三块拼成），
+   不用 ♥ 文本字形——系统字体的字形又扁又糊，和球的糖果质感完全不搭。
+   .heart 只负责定位与升腾动画；形状在 .heartShape 上，自己不动画，
+   两层 transform 互不打架。 */
+.heart {
+  position: absolute;
+  pointer-events: none;
+  animation: pet-heart 1.1s ease-out 1;
+}
+
+.heartShape {
+  display: block;
+  width: 12px;
+  height: 12px;
+  background: radial-gradient(circle at 32% 30%, #ffb1c3 0%, #ff8fab 58%, #f2739a 100%);
+  border-radius: 2px;
+  transform: rotate(-45deg);
+  filter: drop-shadow(0 1px 2px rgba(214, 51, 108, 0.35));
+}
+
+.heartShape::before,
+.heartShape::after {
+  content: '';
+  position: absolute;
+  width: 12px;
+  height: 12px;
+  border-radius: 50%;
+  background: #ff8fab;
+}
+
+.heartShape::before {
+  top: -6px;
+  left: 0;
+}
+
+.heartShape::after {
+  top: 0;
+  left: 6px;
+}
+
+/* 哼小曲的音符：保留字形，加重一点并带同族投影，和心心一个气质。 */
+.note {
+  display: block;
+  color: #ff8fab;
+  font-size: 14px;
+  line-height: 1;
+  font-weight: 600;
+  text-shadow: 0 1px 2px rgba(214, 51, 108, 0.3);
+}
+
+/* 右键小菜单：默认开在宠物上方，顶部空间不够就翻到下方（data-below）。
+   弹出带一个 0.16s 的微弹现—— instantly 出现的菜单像系统弹窗，
+   弹一下的才像小虹递过来的。 */
+.menu {
+  position: absolute;
+  left: 50%;
+  top: 8%;
+  transform: translateX(calc(-50% + var(--pet-edge-shift, 0px)));
+  transform-origin: 50% 100%;
+  z-index: 2;
+  width: 210px;
+  padding: 8px;
+  border-radius: 12px;
+  background: var(--dsw-alias-bg-module-platform, light-dark(#f9fafb, #353638));
+  border: 1px solid var(--dsw-alias-border-l1, light-dark(#0000000a, #ffffff0f));
+  box-shadow: 0 8px 24px light-dark(#0f111526, #00000059);
+  pointer-events: auto;
+  font-size: 12px;
+  color: var(--dsw-alias-label-primary, light-dark(#0f1115, #f9fafb));
+  animation: pet-menu-in 0.16s cubic-bezier(0.2, 0.9, 0.3, 1) 1;
+}
+
+.menu[data-below='true'] {
+  top: auto;
+  bottom: 8%;
+  transform-origin: 50% 0%;
+}
+
+.menuRow {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  padding: 5px 2px;
+}
+
+.menuLabel {
+  flex: none;
+  color: var(--dsw-alias-label-secondary, light-dark(#61666b, #cfd3d6));
+}
+
+.menuChips {
+  display: flex;
+  gap: 4px;
+  flex-wrap: wrap;
+  justify-content: flex-end;
+}
+
+.chip {
+  all: unset;
+  cursor: pointer;
+  padding: 3px 9px;
+  border-radius: 999px;
+  border: 1px solid var(--dsw-alias-border-l3, light-dark(#0000001f, #ffffff29));
+  font-size: 11px;
+  line-height: 16px;
+  color: var(--dsw-alias-label-primary, light-dark(#0f1115, #f9fafb));
+}
+
+.chip:hover {
+  background: var(--dsw-alias-interactive-bg-hover, light-dark(#2631480f, #ffffff14));
+}
+
+.chipActive {
+  border-color: var(--dsw-alias-button-info-fill, light-dark(#1971c2, #4c9aff));
+  background: color-mix(in srgb, var(--dsw-alias-button-info-fill, #1971c2) 12%, transparent);
+}
+
+/* 菜单角色行的小色点：颜色由组件内联下发（data-ball 五色）。 */
+.dot {
+  display: inline-block;
+  width: 9px;
+  height: 9px;
+  margin-right: 5px;
+  border-radius: 50% !important;
+  vertical-align: -1px;
+}
+
+.menuItem {
+  all: unset;
+  display: block;
+  width: 100%;
+  box-sizing: border-box;
+  cursor: pointer;
+  margin-top: 4px;
+  padding: 6px 8px;
+  border-radius: 8px;
+  font-size: 12px;
+  text-align: left;
+  color: var(--dsw-alias-label-primary, light-dark(#0f1115, #f9fafb));
+}
+
+.menuItem:hover {
+  background: var(--dsw-alias-interactive-bg-hover, light-dark(#2631480f, #ffffff14));
+}
+
+/* ——— 状态：表情 + 动效 ——— */
+
+/* 待机：缓慢呼吸 + 轻微摇摆。 */
+.pet[data-state='resting'] .body {
+  animation: pet-rest 5.6s ease-in-out infinite;
+}
+
+.pet[data-state='resting'] .aura {
+  --pet-aura: rgba(217, 73, 61, 0.18);
+}
+
+/* 干活：小幅度持续点头 + 微呼吸——专注是「持续的律动」，
+   不是大幅弹跳；大头点两下像在敲桌子，小幅度才像思考。 */
+.pet[data-state='working'] .body {
+  animation: pet-work 2.1s ease-in-out infinite;
+}
+
+.pet[data-state='working'] .eyeLeft,
+.pet[data-state='working'] .eyeRight {
+  width: 21%;
+  height: 22%;
+  border: 2px solid #d9c74a;
+  border-radius: 30%;
+  /* 镜片是真的透明：透出当前球色，任何角色戴上都不违和。 */
+  background: transparent;
+  animation: none;
+}
+
+/* 镜片里的白眼珠：比镜圈小一圈，瞳孔在其上。 */
+.pet[data-state='working'] .eyeLeft::before,
+.pet[data-state='working'] .eyeRight::before {
+  content: '';
+  position: absolute;
+  left: 50%;
+  top: 50%;
+  width: 62%;
+  height: 70%;
+  margin: -35% 0 0 -31%;
+  border-radius: 50%;
+  background: radial-gradient(circle at 50% 32%, #ffffff 0%, #f2f0e8 100%);
+}
+
+/* 镜架的中梁：两片镜圈之间的那一条，金丝眼镜的辨识度全靠它。 */
+.pet[data-state='working'] .face::before {
+  content: '';
+  position: absolute;
+  top: 47%;
+  left: 50%;
+  width: 8%;
+  height: 2.5%;
+  margin-left: -4%;
+  border-radius: 3px;
+  background: #d9c74a;
+}
+
+.pet[data-state='working'] .pupil {
+  width: 36%;
+  height: 40%;
+  margin: -20% 0 0 -18%;
+  background: radial-gradient(circle at 42% 36%, #4a5058 0%, light-dark(#23272c, #0d0f12) 62%);
+}
+
+/* 高光是眼珠的，不是镜片的：深瞳自带光泽，镜片高光收掉。 */
+.pet[data-state='working'] .glint,
+.pet[data-state='working'] .glintDot {
+  display: none;
+}
+
+.pet[data-state='working'] .aura {
+  --pet-aura: rgba(63, 151, 208, 0.26);
+}
+
+.pet[data-state='working'] .mouth {
+  width: 10%;
+  height: 3.5%;
+  margin-left: -5%;
+  border-radius: 2px;
+  transform: rotate(0deg);
+}
+
+/* 等你：轻快的弹跳 + 惬意眯眼 + 张嘴笑——跃跃欲试但不吵闹。 */
+.pet[data-state='waiting'] .body {
+  animation: pet-wait 1.3s ease-in-out infinite;
+}
+
+.pet[data-state='waiting'] .aura {
+  --pet-aura: rgba(245, 158, 11, 0.32);
+  animation-duration: 1.6s;
+}
+
+/* 眯眼：红弧线「︶」，惬意且有点得意；弧线是硬件脸，不参与眨眼。 */
+.pet[data-state='waiting'] .eyeLeft,
+.pet[data-state='waiting'] .eyeRight {
+  top: 41%;
+  width: 17%;
+  height: 9%;
+  background: transparent;
+  box-shadow: none;
+  border-radius: 0 0 50% 50% / 0 0 100% 100%;
+  border-bottom: 3.5px solid #cf4436;
+  animation: none;
+}
+
+.pet[data-state='waiting'] .pupil,
+.pet[data-state='waiting'] .glint,
+.pet[data-state='waiting'] .glintDot {
+  display: none;
+}
+
+/* 张嘴笑：上排小白牙 + 深色口腔——笑着等你。 */
+.pet[data-state='waiting'] .mouth {
+  width: 20%;
+  height: 15%;
+  margin-left: -10%;
+  border-radius: 5px 5px 60% 60% / 5px 5px 70% 70%;
+  background: linear-gradient(180deg, #ffffff 0%, #ffffff 32%, #40271c 32%, #2a1810 100%);
+  transform: rotate(0deg);
+}
+
+/* 眯眼弧线按球色取对比色：黄球用参考图的红弧，红球用深栗色，
+   粉/蓝/绿球用白弧（粉球的白弧正是参考图粉球的眼）。 */
+.pet[data-ball='red'][data-state='waiting'] .eyeLeft,
+.pet[data-ball='red'][data-state='waiting'] .eyeRight {
+  border-bottom-color: #7e211a;
+}
+
+.pet[data-ball='pink'][data-state='waiting'] .eyeLeft,
+.pet[data-ball='pink'][data-state='waiting'] .eyeRight,
+.pet[data-ball='blue'][data-state='waiting'] .eyeLeft,
+.pet[data-ball='blue'][data-state='waiting'] .eyeRight,
+.pet[data-ball='green'][data-state='waiting'] .eyeLeft,
+.pet[data-ball='green'][data-state='waiting'] .eyeRight {
+  border-bottom-color: #ffffff;
+}
+
+/* 庆祝：起跳 + 星火 + 大笑。
+   影子同步跳（次要动作）：身体升到最高点时影子最小最淡——
+   没有影子联动的跳跃像悬浮，有联动才有重量。 */
+.pet[data-state='celebrating'] .body {
+  animation: pet-cheer 0.85s cubic-bezier(0.3, 0.9, 0.4, 1) 4;
+}
+
+.pet[data-state='celebrating'] .shadow {
+  animation: pet-shadow-jump 0.85s cubic-bezier(0.3, 0.9, 0.4, 1) 4;
+}
+
+.pet[data-state='celebrating'] .aura {
+  --pet-aura: rgba(255, 193, 7, 0.42);
+  animation-duration: 1.1s;
+}
+
+.pet[data-state='celebrating'] .sparkles {
+  display: block;
+}
+
+.pet[data-state='celebrating'] .eyeLeft,
+.pet[data-state='celebrating'] .eyeRight {
+  animation: pet-happy 0.7s ease-in-out infinite;
+}
+
+/* 庆祝时眯眼笑：把瞳孔藏掉，只留一道弯——留着瞳孔会变成一条黑杠。 */
+.pet[data-state='celebrating'] .pupil,
+.pet[data-state='celebrating'] .glint,
+.pet[data-state='celebrating'] .glintDot {
+  display: none;
+}
+
+.pet[data-state='celebrating'] .blush {
+  opacity: 0.95;
+  transform: scale(1.15);
+}
+
+.pet[data-state='celebrating'] .mouth {
+  width: 26%;
+  height: 18%;
+  margin-left: -13%;
+  border-radius: 0 0 60% 60%;
+  background: light-dark(#1b1f24, #0b0d10);
+  transform: rotate(0deg);
+}
+
+.pet[data-state='celebrating'] .tongue {
+  display: block;
+}
+
+.pet[data-state='celebrating'] .sparkle:nth-child(1) {
+  top: 6%;
+  left: 8%;
+  animation: pet-sparkle 1s ease-in-out infinite;
+}
+
+.pet[data-state='celebrating'] .sparkle:nth-child(2) {
+  top: 0%;
+  right: 14%;
+  animation: pet-sparkle 1s ease-in-out 0.2s infinite;
+}
+
+.pet[data-state='celebrating'] .sparkle:nth-child(3) {
+  top: 24%;
+  right: 0%;
+  animation: pet-sparkle 1s ease-in-out 0.4s infinite;
+}
+
+/* 出错：抖动 + 汗滴——瞪圆眼睛往上瞟，一脸「这是什么」的懵。 */
+.pet[data-state='error'] .body {
+  animation: pet-shake 0.62s ease-out 1;
+}
+
+.pet[data-state='error'] .aura {
+  --pet-aura: rgba(240, 90, 60, 0.3);
+}
+
+.pet[data-state='error'] .eyeLeft,
+.pet[data-state='error'] .eyeRight {
+  width: 19%;
+  height: 23%;
+  animation: none;
+}
+
+/* 橙色小瞳孔缩在眼白上部——往上瞟的一脸茫然。 */
+.pet[data-state='error'] .pupil {
+  top: 40%;
+  width: 44%;
+  height: 44%;
+  margin: -22% 0 0 -22%;
+  background: radial-gradient(circle at 42% 36%, #f6a04c 0%, #e07f2e 62%);
+}
+
+.pet[data-state='error'] .glint,
+.pet[data-state='error'] .glintDot {
+  display: none;
+}
+
+.pet[data-state='error'] .blush {
+  opacity: 0.35;
+}
+
+/* 懵住的嘴：一条拉平的直线，微微下坠。 */
+.pet[data-state='error'] .mouth {
+  width: 19%;
+  height: 3.5%;
+  margin-left: -9.5%;
+  border-radius: 3px;
+  transform: rotate(3deg);
+}
+
+.pet[data-state='error'] .sweat {
+  display: block;
+  animation: pet-sweat 1.6s ease-in-out infinite;
+}
+
+/* 打盹：闭眼 + Zzz 上浮，影子随呼吸同步起伏。
+   不压暗不掉饱和——睡着也保持本色，只靠表情和节奏表达「困」。 */
+.pet[data-state='sleeping'] .body {
+  animation: pet-sleep 5.4s ease-in-out infinite;
+}
+
+.pet[data-state='sleeping'] .shadow {
+  animation: pet-shadow-sleep 5.4s ease-in-out infinite;
+}
+
+.pet[data-state='sleeping'] .aura {
+  --pet-aura: rgba(99, 102, 241, 0.2);
+  animation-duration: 6s;
+}
+
+.pet[data-state='sleeping'] .eyeLeft,
+.pet[data-state='sleeping'] .eyeRight {
+  height: 4%;
+  top: 46%;
+  animation: none;
+  background: light-dark(#1b1f24, #0b0d10);
+}
+
+.pet[data-state='sleeping'] .pupil,
+.pet[data-state='sleeping'] .glint,
+.pet[data-state='sleeping'] .glintDot {
+  display: none;
+}
+
+.pet[data-state='sleeping'] .mouth {
+  width: 9%;
+  height: 3%;
+  margin-left: -4.5%;
+  border-radius: 3px;
+  transform: rotate(0deg);
+}
+
+.pet[data-state='sleeping'] .zzz {
+  display: block;
+  animation: pet-zzz 3.2s ease-in-out infinite;
+}
+
+/* 拖拽中：悬空、微垂，动画暂停避免打架。 */
+.pet[data-dragging='true'] .body {
+  animation-play-state: paused;
+}
+
+.pet[data-dragging='true'] .shadow {
+  transform: scale(0.72);
+  opacity: 0.6;
+}
+
+.pet[data-dragging='true'] .eyeLeft,
+.pet[data-dragging='true'] .eyeRight {
+  height: 26%;
+}
+
+.pet[data-dragging='true'] .mouth {
+  width: 8%;
+  height: 12%;
+  margin-left: -4%;
+  border-radius: 50%;
+  border: 2.5px solid light-dark(#1b1f24, #0b0d10);
+  background: transparent;
+  transform: rotate(0deg);
+}
+
+/* 被拎起来的「o」嘴不带撇嘴的小钩。 */
+.pet[data-dragging='true'] .mouth::before {
+  display: none;
+}
+
+/* ——— 一次性反应（连戳转圈 / 晕 / 摸摸 / 踉跄 / 伸懒腰）———
+   全部挂在根的 data-* 上，到点由 JS 摘除；动画都是单次播放。 */
+
+/* 连戳转圈：绕几何中心整圈（.motion 平时的转轴在底部，转圈必须换轴心）。 */
+.pet[data-spin='true'] .motion {
+  transform-origin: 50% 50%;
+  animation: pet-spin 0.8s cubic-bezier(0.45, 0.05, 0.35, 1) 1;
+}
+
+/* 转完的晕：身体小幅画圈晃，眼睛换 ×。 */
+.pet[data-dizzy='true'] .body {
+  animation: pet-dizzy 1.25s ease-in-out 1;
+}
+
+.pet[data-dizzy='true'] .pupil,
+.pet[data-dizzy='true'] .glint,
+.pet[data-dizzy='true'] .glintDot {
+  display: none;
+}
+
+/* 晕的时候 ×_× 是眼神本体：冻结眨眼，别把 X 压扁。 */
+.pet[data-dizzy='true'] .eyeLeft,
+.pet[data-dizzy='true'] .eyeRight {
+  animation: none;
+}
+
+.dizzyX {
+  position: absolute;
+  inset: 14%;
+  display: none;
+  pointer-events: none;
+}
+
+.pet[data-dizzy='true'] .dizzyX {
+  display: block;
+}
+
+.dizzyX::before,
+.dizzyX::after {
+  content: '';
+  position: absolute;
+  left: 6%;
+  right: 6%;
+  top: 50%;
+  height: 14%;
+  margin-top: -7%;
+  border-radius: 2px;
+  background: light-dark(#1b1f24, #0b0d10);
+}
+
+.dizzyX::before {
+  transform: rotate(45deg);
+}
+
+.dizzyX::after {
+  transform: rotate(-45deg);
+}
+
+/* 摸摸：果冻鼓起，眯眼笑 + 腮红拉满——被rua到的满足感。 */
+.pet[data-pat='true'] .body {
+  animation: pet-pat 0.9s ease-out 1;
+}
+
+.pet[data-pat='true'] .eyeLeft,
+.pet[data-pat='true'] .eyeRight {
+  animation: pet-happy 0.5s ease-in-out infinite;
+}
+
+.pet[data-pat='true'] .pupil,
+.pet[data-pat='true'] .glint,
+.pet[data-pat='true'] .glintDot {
+  display: none;
+}
+
+.pet[data-pat='true'] .blush {
+  opacity: 1;
+  transform: scale(1.25);
+}
+
+.pet[data-pat='true'] .mouth {
+  width: 14%;
+  height: 6%;
+  margin-left: -7%;
+}
+
+/* 踉跄：窗口大小变了，地板在晃——重心左右找平衡。 */
+.pet[data-stumble='true'] .body {
+  animation: pet-stumble 0.72s ease-out 1;
+}
+
+/* 睡醒伸懒腰：纵向拉长再回弹，像把一夜的觉都舒展开。 */
+.pet[data-stretch='true'] .body {
+  animation: pet-stretch 0.95s ease-out 1;
+}
+
+/* 影子联动补全：身体离地影子就收、落地影子就摊——重量感全靠它。
+   惊醒是「蹿起收影再落」；落地从半空就位；空降入场影子从一小点长出。 */
+.pet[data-startle='true'] .shadow {
+  animation: pet-shadow-dip 0.62s ease-out 1;
+}
+
+.pet[data-land='true'] .shadow {
+  animation: pet-shadow-land 0.46s cubic-bezier(0.3, 0.8, 0.4, 1) 1;
+}
+
+.pet[data-stretch='true'] .shadow {
+  animation: pet-shadow-stretch 0.95s ease-out 1;
+}
+
+.pet[data-entrance='drop'] .shadow {
+  animation: pet-shadow-enter 0.76s cubic-bezier(0.3, 0.9, 0.4, 1) 1;
+}
+
+/* 惊醒：打盹中被戳——猛地弹起、落地一抖（起床气）。 */
+.pet[data-startle='true'] .body {
+  animation: pet-startle 0.62s ease-out 1;
+}
+
+/* 落地：拖拽松手后的一记小弹跳——被「放下来」，不是被「传送」。 */
+.pet[data-land='true'] .body {
+  animation: pet-land 0.46s cubic-bezier(0.3, 0.8, 0.4, 1) 1;
+}
+
+/* 哼小曲：闲得自在，抱着手轻轻摇。 */
+.pet[data-hum='true'] .body {
+  animation: pet-hum 1.8s ease-in-out 1;
+}
+
+/* ——— 入场动画（登场时 JS 随机挑一个，播完即摘）———
+   每次出现方式都不同：弹现 / 空降 / 旋转 / 蹦入——重逢才有惊喜。
+   都挂在 .motion 上（整只一起动），影子留在原地等它落地。 */
+.pet[data-entrance='pop'] .motion {
+  animation: pet-enter-pop 0.62s cubic-bezier(0.2, 1.4, 0.4, 1) 1;
+}
+
+.pet[data-entrance='drop'] .motion {
+  animation: pet-enter-drop 0.76s cubic-bezier(0.3, 0.9, 0.4, 1) 1;
+}
+
+.pet[data-entrance='spin'] .motion {
+  transform-origin: 50% 50%;
+  animation: pet-enter-spin 0.78s cubic-bezier(0.3, 0.8, 0.3, 1) 1;
+}
+
+.pet[data-entrance='hop'] .motion {
+  animation: pet-enter-hop 0.7s ease-out 1;
+}
+
+/* ——— 动画强度（设置面板三档）———
+   off：用户主动关动画，与系统级「减弱动态效果」等效——表情仍可读，
+   只是不再动；subtle：保留全部反应但幅度收敛，把「弹跳」换成「浮动」。 */
+.pet[data-motion='off'] .body,
+.pet[data-motion='off'] .aura,
+.pet[data-motion='off'] .motion,
+.pet[data-motion='off'] .eyeLeft,
+.pet[data-motion='off'] .eyeRight,
+.pet[data-motion='off'] .shadow,
+.pet[data-motion='off'] .sheen,
+.pet[data-motion='off'] .sparkle,
+.pet[data-motion='off'] .sweat,
+.pet[data-motion='off'] .zzz,
+.pet[data-motion='off'] .shock,
+.pet[data-motion='off'] .heart {
+  animation: none !important;
+}
+
+.pet[data-motion='off'] .menu {
+  animation: none !important;
+}
+
+.pet[data-motion='off'] .pupil,
+.pet[data-motion='off'] .glint,
+.pet[data-motion='off'] .glintDot,
+.pet[data-motion='off'] .hit {
+  transition: none !important;
+}
+
+.pet[data-motion='subtle'][data-state='working'] .body {
+  animation: pet-work-calm 2.2s ease-in-out infinite;
+}
+
+.pet[data-motion='subtle'][data-state='waiting'] .body {
+  animation: pet-wait-calm 1.8s ease-in-out infinite;
+}
+
+.pet[data-motion='subtle'][data-state='celebrating'] .body {
+  animation: pet-cheer-calm 1.3s ease-in-out 3;
+}
+
+.pet[data-motion='subtle'][data-state='celebrating'] .shadow {
+  animation: none;
+}
+
+.pet[data-motion='subtle'][data-stumble='true'] .body {
+  animation: pet-stumble-calm 0.8s ease-out 1;
+}
+
+/* ——— 关键帧 ——— */
+
+@keyframes pet-rest {
+  0%, 100% { transform: translateY(0) rotate(0deg) scaleY(1); }
+  30% { transform: translateY(-2px) rotate(-1deg) scaleY(1.02); }
+  65% { transform: translateY(0) rotate(1deg) scaleY(0.995); }
+}
+
+@keyframes pet-work {
+  0%, 100% { transform: translateY(0) rotate(-1.6deg) scale(1, 1); }
+  50% { transform: translateY(-4px) rotate(1.6deg) scale(1.012, 0.99); }
+}
+
+@keyframes pet-wait {
+  0%, 100% { transform: translateY(0) rotate(-2.2deg); }
+  50% { transform: translateY(-6px) rotate(2.2deg); }
+}
+
+@keyframes pet-cheer {
+  0% { transform: translateY(0) scale(1, 1); }
+  14% { transform: translateY(3px) scale(1.09, 0.9); }
+  44% { transform: translateY(-20px) scale(0.94, 1.07); }
+  70% { transform: translateY(0) scale(1.06, 0.93); }
+  86% { transform: translateY(-4px) scale(0.99, 1.02); }
+  100% { transform: translateY(0) scale(1, 1); }
+}
+
+@keyframes pet-shake {
+  0%, 100% { transform: translateX(0) rotate(0deg); }
+  20% { transform: translateX(-5px) rotate(-3deg); }
+  40% { transform: translateX(5px) rotate(3deg); }
+  60% { transform: translateX(-3px) rotate(-2deg); }
+  80% { transform: translateX(2px) rotate(1deg); }
+}
+
+@keyframes pet-sleep {
+  0%, 100% { transform: translateY(0) rotate(-4deg) scale(1, 1); }
+  50% { transform: translateY(2.5px) rotate(-4deg) scale(1.02, 1.045); }
+}
+
+/* 眨眼：7.4 秒一轮，三次眨（其中一次是连眨），不规律才像活的。 */
+@keyframes pet-blink {
+  0%, 34% { transform: scaleY(1); }
+  36%, 37.4% { transform: scaleY(0.08); }
+  38%, 39% { transform: scaleY(1); }
+  42%, 43.4% { transform: scaleY(0.08); }
+  44%, 100% { transform: scaleY(1); }
+}
+
+/* 庆祝时眯眼笑。 */
+@keyframes pet-happy {
+  0%, 100% { transform: scaleY(0.42); }
+  50% { transform: scaleY(0.26); }
+}
+
+@keyframes pet-aura {
+  0%, 100% { opacity: 0.75; transform: scale(1); }
+  50% { opacity: 1; transform: scale(1.06); }
+}
+
+@keyframes pet-sparkle {
+  0%, 100% { opacity: 0.25; transform: scale(0.7); }
+  50% { opacity: 1; transform: scale(1.15); }
+}
+
+@keyframes pet-sweat {
+  0%, 100% { opacity: 0.35; transform: translateY(0); }
+  50% { opacity: 1; transform: translateY(4px); }
+}
+
+@keyframes pet-zzz {
+  0% { opacity: 0; transform: translateY(6px) scale(0.8); }
+  40% { opacity: 1; }
+  100% { opacity: 0; transform: translateY(-14px) scale(1.1); }
+}
+
+@keyframes pet-shock {
+  0% { opacity: 0.9; transform: scale(0.6); }
+  100% { opacity: 0; transform: scale(2.6); }
+}
+
+/* 庆祝跳跃的影子联动：与 pet-cheer 同周期，44% 处身体到最高点
+   （translateY(-20px)），影子同步收到最小最淡。 */
+@keyframes pet-shadow-jump {
+  0%, 100% { transform: scale(1); opacity: 1; }
+  14% { transform: scale(1.08); opacity: 1; }
+  44% { transform: scale(0.55); opacity: 0.4; }
+  70% { transform: scale(1.05); opacity: 0.9; }
+}
+
+/* 打盹呼吸的影子联动：身体变宽时影子也微放大。 */
+@keyframes pet-shadow-sleep {
+  0%, 100% { transform: scale(1); opacity: 0.9; }
+  50% { transform: scale(1.06); opacity: 1; }
+}
+
+/* 惊醒的影子联动：身体蹿到最高点时收到最小最淡，落地摊开再归位。 */
+@keyframes pet-shadow-dip {
+  0% { transform: scale(1); opacity: 1; }
+  20% { transform: scale(0.55); opacity: 0.45; }
+  45% { transform: scale(1.14); opacity: 1; }
+  72% { transform: scale(0.96); opacity: 0.92; }
+  100% { transform: scale(1); opacity: 1; }
+}
+
+/* 落地的影子联动：从半空就位（略小略淡），压扁着地时摊到最宽。 */
+@keyframes pet-shadow-land {
+  0% { transform: scale(0.8); opacity: 0.7; }
+  38% { transform: scale(1.14); opacity: 1; }
+  70% { transform: scale(0.97); opacity: 0.92; }
+  100% { transform: scale(1); opacity: 1; }
+}
+
+/* 伸懒腰的影子联动：身体拉高变窄时影子微收。 */
+@keyframes pet-shadow-stretch {
+  0%, 100% { transform: scale(1); opacity: 0.9; }
+  38% { transform: scale(0.93); opacity: 0.8; }
+}
+
+/* 空降入场的影子联动：球还在半空，影子先从一小点长成全影。 */
+@keyframes pet-shadow-enter {
+  0% { transform: scale(0.5); opacity: 0.35; }
+  62% { transform: scale(1.15); opacity: 1; }
+  80% { transform: scale(0.96); opacity: 0.9; }
+  100% { transform: scale(1); opacity: 1; }
+}
+
+/* 高光呼吸：与待机呼吸同周期，球面反光跟着轻轻漂——「活」不只身子在动。 */
+@keyframes pet-sheen {
+  0%, 100% { transform: translate(0, 0); }
+  30% { transform: translate(-1%, -0.8%); }
+  65% { transform: translate(0.8%, 0.6%); }
+}
+
+/* 菜单弹现：从宠物那一侧（transform-origin 按 data-below 翻转）长出来。 */
+@keyframes pet-menu-in {
+  0% { opacity: 0; transform: translateX(calc(-50% + var(--pet-edge-shift, 0px))) scale(0.94); }
+  100% { opacity: 1; transform: translateX(calc(-50% + var(--pet-edge-shift, 0px))); }
+}
+
+/* 连戳转圈：起转稍缓、甩过头顶稍快，结尾回正——不是匀速风车。 */
+@keyframes pet-spin {
+  0% { transform: rotate(0deg) scale(1, 1); }
+  40% { transform: rotate(190deg) scale(1.04, 0.97); }
+  88% { transform: rotate(374deg) scale(0.99, 1.02); }
+  100% { transform: rotate(360deg) scale(1, 1); }
+}
+
+/* 晕：左右缓晃，幅度递减——像天旋地转在慢慢停。 */
+@keyframes pet-dizzy {
+  0% { transform: rotate(-7deg) translateX(-2px); }
+  22% { transform: rotate(5deg) translateX(2px); }
+  48% { transform: rotate(-4deg) translateX(-1px); }
+  74% { transform: rotate(2.5deg) translateX(1px); }
+  100% { transform: rotate(0deg) translateX(0); }
+}
+
+/* 摸摸：先鼓起（被按出坑再弹回来），再果冻似的晃两下。 */
+@keyframes pet-pat {
+  0% { transform: scale(1, 1); }
+  28% { transform: scale(1.16, 0.86); }
+  52% { transform: scale(0.93, 1.11); }
+  74% { transform: scale(1.05, 0.97); }
+  100% { transform: scale(1, 1); }
+}
+
+/* 踉跄：重心左右找平衡，每一下都比上一下小。 */
+@keyframes pet-stumble {
+  0% { transform: rotate(0deg) translateX(0); }
+  16% { transform: rotate(-12deg) translateX(-3px) scale(1.03, 0.97); }
+  38% { transform: rotate(9deg) translateX(2px); }
+  58% { transform: rotate(-6deg) translateX(-1.5px); }
+  78% { transform: rotate(3deg) translateX(1px); }
+  100% { transform: rotate(0deg) translateX(0); }
+}
+
+@keyframes pet-stumble-calm {
+  0%, 100% { transform: rotate(0deg) translateX(0); }
+  25% { transform: rotate(-5deg) translateX(-1.5px); }
+  55% { transform: rotate(4deg) translateX(1px); }
+  80% { transform: rotate(-2deg); }
+}
+
+/* 伸懒腰：纵向拉长、踮起脚尖，再泄气回弹。 */
+@keyframes pet-stretch {
+  0% { transform: scale(1, 1) translateY(0); }
+  38% { transform: scale(0.92, 1.18) translateY(-4px); }
+  66% { transform: scale(1.05, 0.96) translateY(1px); }
+  84% { transform: scale(0.99, 1.02); }
+  100% { transform: scale(1, 1) translateY(0); }
+}
+
+/* 惊醒：猛地弹到最高点缩成一条，落地压扁再抖两下。 */
+@keyframes pet-startle {
+  0% { transform: translateY(0) scale(1, 1); }
+  18% { transform: translateY(-16px) scale(0.9, 1.12); }
+  42% { transform: translateY(0) scale(1.12, 0.88); }
+  62% { transform: translateY(-4px) scale(0.98, 1.03); }
+  82% { transform: translateY(0) scale(1.04, 0.97); }
+  100% { transform: translateY(0) scale(1, 1); }
+}
+
+/* 落地：先压缩蓄力感（从半空落下），压扁、回弹、归位。 */
+@keyframes pet-land {
+  0% { transform: translateY(-4px) scale(0.96, 1.05); }
+  38% { transform: translateY(0) scale(1.1, 0.9); }
+  70% { transform: translateY(-2px) scale(0.98, 1.02); }
+  100% { transform: translateY(0) scale(1, 1); }
+}
+
+/* 哼小曲：小幅、慢速的左右摇——自得其乐的节奏。 */
+@keyframes pet-hum {
+  0%, 100% { transform: translateY(0) rotate(0deg); }
+  30% { transform: translateY(-2px) rotate(-4deg); }
+  65% { transform: translateY(0) rotate(4deg); }
+}
+
+/* 入场·弹现：从零弹出，过头一回再归位。 */
+@keyframes pet-enter-pop {
+  0% { transform: scale(0); opacity: 0; }
+  55% { transform: scale(1.14); opacity: 1; }
+  78% { transform: scale(0.95); }
+  100% { transform: scale(1); }
+}
+
+/* 入场·空降：从上方落下，落地压扁、小弹一下。 */
+@keyframes pet-enter-drop {
+  0% { transform: translateY(-44px); }
+  62% { transform: translateY(0) scale(1.12, 0.88); }
+  80% { transform: translateY(-6px) scale(0.97, 1.04); }
+  100% { transform: translateY(0) scale(1); }
+}
+
+/* 入场·旋转：倒着缩着转进来，甩过头再回正。 */
+@keyframes pet-enter-spin {
+  0% { transform: rotate(-200deg) scale(0.3); opacity: 0; }
+  45% { opacity: 1; }
+  70% { transform: rotate(12deg) scale(1.05); }
+  100% { transform: rotate(0deg) scale(1); }
+}
+
+/* 入场·蹦入：从左侧两步蹦进来，最后站稳。 */
+@keyframes pet-enter-hop {
+  0% { transform: translateX(-38px) scale(0.7); opacity: 0; }
+  30% { transform: translateX(-16px) translateY(-8px) scale(1.04, 0.96); opacity: 1; }
+  55% { transform: translateX(4px) translateY(0) scale(0.96, 1.05); }
+  78% { transform: translateX(0) translateY(-3px) scale(1.02, 0.98); }
+  100% { transform: translateX(0) scale(1); }
+}
+
+/* 轻柔档的状态动画：保留节奏，去掉弹跳与位移幅度。 */
+@keyframes pet-work-calm {
+  0%, 100% { transform: translateY(0) rotate(-0.9deg); }
+  50% { transform: translateY(-2px) rotate(0.9deg); }
+}
+
+@keyframes pet-wait-calm {
+  0%, 100% { transform: translateY(0) scale(1, 1); }
+  50% { transform: translateY(-2.5px) scale(1.012, 0.99); }
+}
+
+@keyframes pet-cheer-calm {
+  0%, 100% { transform: translateY(0); }
+  45% { transform: translateY(-6px) scale(0.985, 1.025); }
+  70% { transform: translateY(0) scale(1.015, 0.99); }
+}
+
+@keyframes pet-heart {
+  0% { opacity: 0; transform: translateY(2px) scale(0.3) rotate(-14deg); }
+  25% { opacity: 1; transform: translateY(-12px) scale(1.08) rotate(6deg); }
+  100% { opacity: 0; transform: translateY(-46px) scale(0.8) rotate(-8deg); }
+}
+
+/* 用户开启「减弱动态效果」时停掉全部动画，状态仍然可读。
+   系统级设置压过用户档位：即便偏好是「全量」，OS 说减就减。 */
+@media (prefers-reduced-motion: reduce) {
+  .body,
+  .aura,
+  .motion,
+  .eyeLeft,
+  .eyeRight,
+  .shadow,
+  .sheen,
+  .sparkle,
+  .sweat,
+  .zzz,
+  .shock,
+  .heart,
+  .menu {
+    animation: none !important;
+  }
+
+  .pupil,
+  .glint,
+  .glintDot,
+  .hit,
+  .body,
+  .bubble {
+    transition: none !important;
+  }
+}

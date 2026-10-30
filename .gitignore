@@ -2,3 +2,7 @@ node_modules/
 *.tsbuildinfo
 .secrets/
 .video_agent/
+tools/anim-bench/.out/
+
+# macOS 目录元数据
+.DS_Store

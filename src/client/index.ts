@@ -9,11 +9,11 @@
  * 经 `<html>` 的 `data-rainbow-*` 标记与 `--dsh-rainbow-*` 变量实时下发
  * （preferences/state-bridge），变更即时生效、无需重建样式表。
  *
- * - `::before` 伪元素画 `conic-gradient` 全色谱环，`mask` 挖空中部只留边缘
- *   环带（环外缘贴合卡片 22px 圆角，宽度 `--dsh-rainbow-width`）；
- * - `@property` 把 `--dsh-rainbow-angle` 注册为 `<angle>`，使其可被 keyframes
- *   插值——动画推进锥形渐变的起始角，颜色即沿周长持续流动（跑马灯）；
- *   不支持 `@property` 的引擎自动降级为静态彩虹描边；
+ * - 旋转图层（`rainbow-ring.ts` 注入）：载体层 `.rs-ring` 用 `mask` 把渐变挖成
+ *   边缘环带，色彩层 `.rs-conic` 是一张正方形锥形渐变，绕卡片中心自转——
+ *   渐变只画一次，流动交给合成器，不再每帧重绘整张卡片；
+ * - `::before` 保留为静态兜底：图层还没注入时（宿主卡片晚出现）至少有一圈
+ *   彩虹描边，卡片挂上 `rs-has-ring` 后兜底退场；
  * - 会话状态桥把 running/promptError/lastAgentError 与审批等待投影为
  *   `data-rainbow-state`（error > attention > running 优先级），运行中自动
  *   加速、审批等待琥珀脉冲、出错切红色警示；回合完成瞬间打
@@ -45,6 +45,7 @@ import { RainbowSettingsSection } from './settings.tsx'
 import { NS, en, zh, type RainbowKey } from './locales.ts'
 import { applyPrefs, loadPrefs } from './preferences.ts'
 import { PALETTE_STOPS } from './palettes.ts'
+import { mountRainbowRing } from './rainbow-ring.ts'
 import { PetRoot } from './pet.tsx'
 import { startPetRemote } from './pet-remote.ts'
 import { bindPetLocale } from './pet-locale.ts'
@@ -56,23 +57,37 @@ declare module '@deepseek-ai/dsh-client-ui-slots' {
   }
 }
 
-/** 生成注入的样式表全文（配色方案段由 PALETTE_STOPS 展开）。 */
+/**
+ * 生成注入的样式表全文（配色方案段由 PALETTE_STOPS 展开）。
+ *
+ * 「流动」的实现方式决定了这份样式的骨架：
+ *
+ * - **旧做法**：`@property` 把 `--dsh-rainbow-angle` 注册成 `<angle>`，keyframes
+ *   插值这个角度。插值的是「渐变的角度参数」，于是每一帧都要重新光栅化整张
+ *   卡片的锥形渐变（实测 3 秒 362 次 Paint，裁剪区是整个视口）——抢的是宿主
+ *   自己的主线程。
+ * - **现在**：渐变只画一次，流动交给合成器。往卡片里注入两层（见
+ *   `rainbow-ring.ts`）：载体层只管遮罩（把渐变挖成边缘一圈色带），色彩层是
+ *   一张正方形锥形渐变，绕卡片中心自转。合成器只需旋转一张现成的图。
+ *
+ * 静态兜底仍然保留在 `::before` 上：图层还没注入时（宿主卡片晚出现、或注入
+ * 失败）至少有一圈静态彩虹描边。卡片上挂了 `rs-has-ring` 后兜底退场，
+ * 避免两层色带叠加。
+ */
 function rainbowCss(): string {
+  // 配色方案：静态兜底（::before）与旋转图层（.rs-conic）各要一份色标。
   const paletteBlocks = Object.entries(PALETTE_STOPS)
     .map(([name, stops]) => `
 /* 配色方案：${name}。 */
 html[data-rainbow-palette="${name}"] [data-composer-card]::before {
-  background: conic-gradient(from var(--dsh-rainbow-angle), ${stops});
+  background: conic-gradient(from 0deg, ${stops});
+}
+
+html[data-rainbow-palette="${name}"] [data-composer-card] .rs-conic {
+  background: conic-gradient(from 0deg, ${stops});
 }`)
     .join('\n')
   return `
-/* 彩虹流动相位：注册为 <angle> 才能被 keyframes 插值（Chromium/Electron 支持）。 */
-@property --dsh-rainbow-angle {
-  syntax: '<angle>';
-  initial-value: 0deg;
-  inherits: false;
-}
-
 /* 默认变量：偏好服务在 <html> 上以内联样式覆盖（inline 优先于 :root 声明）。 */
 :root {
   --dsh-rainbow-width: 2px;
@@ -85,51 +100,93 @@ html[data-rainbow-palette="${name}"] [data-composer-card]::before {
   position: relative;
 }
 
-/* 彩虹跑马灯环：conic-gradient 全色谱 + mask 挖空中部，只留边缘环带。
-   ::before 画在卡片背景之上；pointer-events 关闭，不拦截任何交互。 */
+/* 静态兜底：旋转图层还没挂上时，至少有一圈彩虹描边（不流动）。 */
 [data-composer-card]::before {
   content: '';
   position: absolute;
   inset: 0;
   border-radius: inherit;
   padding: var(--dsh-rainbow-width);
-  background: conic-gradient(from var(--dsh-rainbow-angle), ${PALETTE_STOPS.rainbow});
+  background: conic-gradient(from 0deg, ${PALETTE_STOPS.rainbow});
   -webkit-mask: linear-gradient(#fff 0 0) content-box, linear-gradient(#fff 0 0);
   -webkit-mask-composite: xor;
   mask: linear-gradient(#fff 0 0) content-box, linear-gradient(#fff 0 0);
   mask-composite: exclude;
-  animation: dsh-rainbow-flow var(--dsh-rainbow-period) linear infinite;
-  animation-direction: var(--dsh-rainbow-direction);
   pointer-events: none;
   transition: filter 0.3s ease;
 }
 
-@keyframes dsh-rainbow-flow {
-  to { --dsh-rainbow-angle: 360deg; }
+/* 卡片上已有旋转图层：静态兜底退场，避免两层色带叠加。 */
+[data-composer-card].rs-has-ring::before {
+  display: none;
 }
+
+/* ——— 旋转图层 ———
+   载体层只管遮罩（把渐变挖成边缘一圈色带），形状永远不动；
+   色彩层是一张正方形锥形渐变，绕卡片中心自转。
+   正方形是硬要求：扁矩形绕中心转只盖得住中心附近的窄扇区，
+   卡片左右会露出底层渐变（实测 130° 色相断层）。 */
+[data-composer-card] .rs-ring {
+  position: absolute;
+  inset: 0;
+  border-radius: inherit;
+  padding: var(--dsh-rainbow-width);
+  -webkit-mask: linear-gradient(#fff 0 0) content-box, linear-gradient(#fff 0 0);
+  -webkit-mask-composite: xor;
+  mask: linear-gradient(#fff 0 0) content-box, linear-gradient(#fff 0 0);
+  mask-composite: exclude;
+  overflow: hidden;
+  pointer-events: none;
+}
+
+[data-composer-card] .rs-conic {
+  position: absolute;
+  left: 50%;
+  top: 50%;
+  /* 边长 = 卡片宽度的两倍：内切圆半径 = 卡片宽度，够盖住卡片对角线的一半
+     （卡片高 ≤ 1.73 倍宽时成立；输入框卡片是宽扁的，这条恒成立）。 */
+  width: 200%;
+  aspect-ratio: 1 / 1;
+  /* 居中用独立的 translate 属性：与 transform(rotate) 分开写，互不覆盖。 */
+  translate: -50% -50%;
+  background: conic-gradient(from 0deg, ${PALETTE_STOPS.rainbow});
+  animation: dsh-rainbow-spin var(--dsh-rainbow-period) linear infinite;
+  animation-direction: var(--dsh-rainbow-direction);
+  will-change: transform;
+}
+
+@keyframes dsh-rainbow-spin {
+  to { transform: rotate(360deg); }
+}
+
 ${paletteBlocks}
 
 /* 显示位置：仅顶边（mask 只保留顶部条带，颜色仍是环上对应弧段，随角度流动）。 */
-html[data-rainbow-side="top"] [data-composer-card]::before {
+html[data-rainbow-side="top"] [data-composer-card]::before,
+html[data-rainbow-side="top"] [data-composer-card] .rs-ring {
   -webkit-mask: linear-gradient(180deg, #fff 0 var(--dsh-rainbow-width), transparent var(--dsh-rainbow-width));
   mask: linear-gradient(180deg, #fff 0 var(--dsh-rainbow-width), transparent var(--dsh-rainbow-width));
 }
 
 /* 显示位置：仅底边。 */
-html[data-rainbow-side="bottom"] [data-composer-card]::before {
+html[data-rainbow-side="bottom"] [data-composer-card]::before,
+html[data-rainbow-side="bottom"] [data-composer-card] .rs-ring {
   -webkit-mask: linear-gradient(180deg, transparent calc(100% - var(--dsh-rainbow-width)), #fff calc(100% - var(--dsh-rainbow-width)));
   mask: linear-gradient(180deg, transparent calc(100% - var(--dsh-rainbow-width)), #fff calc(100% - var(--dsh-rainbow-width)));
 }
 
-/* 呼吸明暗：叠加第二个动画（opacity 周期变化，周期随流速放大一倍）。 */
+/* 呼吸明暗：叠加在载体层上（opacity 走合成器）。 */
 @keyframes dsh-rainbow-breathe {
   0%, 100% { opacity: 1; }
   50% { opacity: 0.55; }
 }
 
 html[data-rainbow-breathe] [data-composer-card]::before {
-  animation: dsh-rainbow-flow var(--dsh-rainbow-period) linear infinite,
-    dsh-rainbow-breathe calc(var(--dsh-rainbow-period) * 2) ease-in-out infinite;
+  animation: dsh-rainbow-breathe calc(var(--dsh-rainbow-period) * 2) ease-in-out infinite;
+}
+
+html[data-rainbow-breathe] [data-composer-card] .rs-ring {
+  animation: dsh-rainbow-breathe calc(var(--dsh-rainbow-period) * 2) ease-in-out infinite;
 }
 
 /* 会话运行中：流动加速（状态桥把 running 投影到 <html data-rainbow-state>）。 */
@@ -137,21 +194,38 @@ html[data-rainbow-state="running"] [data-composer-card] {
   --dsh-rainbow-period: 1.2s;
 }
 
-/* 审批等待：琥珀色配色 + 缓慢脉冲（pendingInteraction 由状态桥投影）。 */
-html[data-rainbow-state="attention"] [data-composer-card]::before {
-  background: conic-gradient(from var(--dsh-rainbow-angle), #f59e0b, #fbbf24, #fcd34d, #f59e0b, #d97706, #f59e0b);
-  animation: dsh-rainbow-flow 3s linear infinite, dsh-rainbow-error-pulse 2s ease-in-out infinite;
+/* 审批等待：琥珀色配色 + 缓慢脉冲（pendingInteraction 由状态桥投影）。
+   配色必须跟着状态走——颜色在这套产品里是语义（琥珀 = 需要你确认）。 */
+html[data-rainbow-state="attention"] [data-composer-card]::before,
+html[data-rainbow-state="attention"] [data-composer-card] .rs-conic {
+  background: conic-gradient(from 0deg, #f59e0b, #fbbf24, #fcd34d, #f59e0b, #d97706, #f59e0b);
+}
+
+html[data-rainbow-state="attention"] [data-composer-card] .rs-conic {
+  animation-duration: 3s;
 }
 
 /* 会话出错：红色警示配色 + 快速脉冲。 */
+html[data-rainbow-state="error"] [data-composer-card]::before,
+html[data-rainbow-state="error"] [data-composer-card] .rs-conic {
+  background: conic-gradient(from 0deg, #ef4444, #f87171, #fca5a5, #ef4444, #dc2626, #ef4444);
+}
+
+html[data-rainbow-state="error"] [data-composer-card] .rs-conic {
+  animation-duration: 1s;
+}
+
 @keyframes dsh-rainbow-error-pulse {
   0%, 100% { opacity: 1; }
   50% { opacity: 0.45; }
 }
 
-html[data-rainbow-state="error"] [data-composer-card]::before {
-  background: conic-gradient(from var(--dsh-rainbow-angle), #ef4444, #f87171, #fca5a5, #ef4444, #dc2626, #ef4444);
-  animation: dsh-rainbow-flow 1s linear infinite, dsh-rainbow-error-pulse 1.2s ease-in-out infinite;
+html[data-rainbow-state="attention"] [data-composer-card] .rs-ring {
+  animation: dsh-rainbow-error-pulse 2s ease-in-out infinite;
+}
+
+html[data-rainbow-state="error"] [data-composer-card] .rs-ring {
+  animation: dsh-rainbow-error-pulse 1.2s ease-in-out infinite;
 }
 
 /* 回合完成庆祝：快转一圈并提亮回落（标记由状态桥 0.9s 后移除）。
@@ -164,16 +238,26 @@ html[data-rainbow-state="error"] [data-composer-card]::before {
 }
 
 html[data-rainbow-celebrate] [data-composer-card]::before {
-  animation: dsh-rainbow-flow 0.9s linear 1, dsh-rainbow-celebrate 0.9s ease-out 1;
+  animation: dsh-rainbow-celebrate 0.9s ease-out 1;
+}
+
+html[data-rainbow-celebrate] [data-composer-card] .rs-conic {
+  animation: dsh-rainbow-spin 0.9s linear 1;
+}
+
+html[data-rainbow-celebrate] [data-composer-card] .rs-ring {
+  animation: dsh-rainbow-celebrate 0.9s ease-out 1;
 }
 
 /* 输入框聚焦时环更亮更饱和，失焦平滑回落。 */
-[data-composer-card]:focus-within::before {
+[data-composer-card]:focus-within::before,
+[data-composer-card]:focus-within .rs-ring {
   filter: brightness(1.25) saturate(1.15);
 }
 
-/* 总开关关闭：隐藏伪元素（偏好服务在 <html data-rainbow-off> 上打标记）。 */
-html[data-rainbow-off] [data-composer-card]::before {
+/* 总开关关闭：隐藏伪元素与旋转图层（偏好服务在 <html data-rainbow-off> 上打标记）。 */
+html[data-rainbow-off] [data-composer-card]::before,
+html[data-rainbow-off] [data-composer-card] .rs-ring {
   display: none;
 }
 
@@ -181,6 +265,11 @@ html[data-rainbow-off] [data-composer-card]::before {
 @media (prefers-reduced-motion: reduce) {
   [data-composer-card]::before {
     animation: none;
+  }
+
+  [data-composer-card] .rs-conic,
+  [data-composer-card] .rs-ring {
+    animation: none !important;
   }
 }
 `
@@ -212,6 +301,11 @@ export function apply(ctx: Context): void {
 
 function applyInner(ctx: Context): void {
   console.info(`[dsh-ui-rainbowspeak] client build ${CLIENT_BUILD}`)
+  // 旋转图层：往宿主的输入框卡片里注入载体层与色彩层（见 rainbow-ring.ts）。
+  ctx.effect(() => {
+    const dispose = mountRainbowRing()
+    return () => { dispose() }
+  }, 'ui-rainbowspeak: rainbow ring layer')
   ctx.effect(() => {
     const tag = document.createElement('style')
     tag.dataset.plugin = PLUGIN_ID

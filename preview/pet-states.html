@@ -10,7 +10,8 @@
  * 分层是有意的，因为三层的「谁拥有 transform」必须分清：
  * - `.motion` —— **JS 拥有**：挤压回弹、拖拽摆动（直接写 style）；
  * - `.body`  —— **CSS 拥有**：状态动画（呼吸 / 忙碌 / 庆祝 / 抖动 / 打盹）；
- * - `.eye`   —— 眨眼；`.pupil` 用 `--pet-look-x/y` 跟随指针。
+ * - `.eye`   —— 眨眼；瞳孔与两处高光由 JS 直接写 `transform` 跟随指针
+ *   （不写继承型自定义属性：那会让整棵子树每帧失效重算）。
  *
  * 形象逻辑：五颗球 = 五个可选角色（红/黄/粉/蓝/绿，经 `petBall` 偏好
  * 选择、`data-ball` 下发）——球色是身份，不随状态变化；表情（眼形/
@@ -28,6 +29,17 @@
 .pet {
   position: fixed;
   z-index: 40;
+
+  /* ——— 动效语言 ———
+     时长与曲线抽成 token：新动画有参照系，手感不会随时间漂。
+     参考 Material 3 的 motion tokens：短 150ms / 中 300ms / 长 500ms 三档，
+     配三条曲线（标准 / 强调 / 回弹）。 */
+  --pet-dur-fast: 160ms;
+  --pet-dur-base: 320ms;
+  --pet-dur-slow: 620ms;
+  --pet-ease-standard: cubic-bezier(0.2, 0, 0, 1);
+  --pet-ease-emphasized: cubic-bezier(0.2, 0.9, 0.3, 1);
+  --pet-ease-elastic: cubic-bezier(0.34, 1.4, 0.64, 1);
   /* 覆盖层本身是点击穿透的：只有角色本体重新接回指针事件。 */
   pointer-events: none;
   width: var(--dsh-pet-size, 104px);
@@ -35,9 +47,9 @@
   touch-action: none;
   user-select: none;
   -webkit-user-select: none;
-  /* 瞳孔跟随指针的位移（JS 直接写这里）。 */
-  --pet-look-x: 0px;
-  --pet-look-y: 0px;
+  /* 隔离：宿主样式改不动桌宠内部，桌宠的重算也不会外溢到宿主。
+     不加 paint —— 气泡与菜单要能溢出到桌宠盒子外。 */
+  contain: layout style;
 }
 
 .hit {
@@ -69,13 +81,39 @@
   outline-offset: 4px;
 }
 
-/* JS 形变层：挤压回弹与拖拽摆动都写在这里。 */
+/* 形变分层：每一层只拥有一个 transform，谁也抢不走谁。
+   - .motion —— CSS 拥有：入场动画与连戳转圈；
+   - .swing  —— JS 拥有：拖拽摆动（跟着惯性歪）；
+   - .squash —— JS 拥有：挤压回弹（Web Animations API，可取消）。
+   以前 JS 与 CSS 都写 .motion 的 transform，CSS 动画优先级更高——
+   戳击回弹会被入场动画直接吞掉。 */
 .motion {
   position: relative;
   display: block;
   width: 100%;
   height: 100%;
   transform-origin: 50% 90%;
+}
+
+/* JS 摆动层：绝对定位，不参与布局（.body 的盒子不受影响）。 */
+.swing {
+  position: absolute;
+  inset: 0;
+  display: block;
+  transform-origin: 50% 90%;
+}
+
+/* JS 挤压层：同上。 */
+.squash {
+  position: absolute;
+  inset: 0;
+  display: block;
+  transform-origin: 50% 90%;
+}
+
+/* 拖拽中才提层：平时不留常驻合成层。 */
+.pet[data-dragging='true'] .swing,
+.pet[data-dragging='true'] .squash {
   will-change: transform;
 }
 
@@ -87,9 +125,11 @@
   background: radial-gradient(circle, var(--pet-aura, rgba(217, 73, 61, 0.22)) 0%, transparent 70%);
   filter: blur(9px);
   opacity: 0.8;
-  transition: background 0.3s ease, opacity 0.3s ease;
+  /* 只过渡透明度：过渡 background 会让整块模糊每帧重算。 */
+  transition: opacity 0.3s ease;
   pointer-events: none;
   animation: pet-aura 3.6s ease-in-out infinite;
+  --pet-aura-scale: 1.06;
 }
 
 .body {
@@ -110,6 +150,8 @@
      改写也只影响这层柔影的轮廓，18px 模糊下方圆难辨。 */
   box-shadow: 0 8px 18px light-dark(#0f111526, #00000059);
   transform-origin: 50% 90%;
+  /* .body 几乎一直在动（呼吸/点头/跳跃），常驻提层是划算的；
+     .motion 只在入场与转圈时动，那里改成按需。 */
   will-change: transform;
   /* 悬停时球面微微提亮——「注意到你了」的一层反应，不是动效。 */
   transition: filter 0.25s ease;
@@ -178,6 +220,7 @@
     radial-gradient(74% 24% at 50% 105%, rgba(255, 255, 255, 0.13), rgba(255, 255, 255, 0) 100%);
   pointer-events: none;
   animation: pet-sheen 5.6s ease-in-out infinite;
+  --pet-sheen-shift: -1%;
 }
 
 /* 轮廓：外圈深色细描边（浅色主题下把形从亮背景里勾出来），
@@ -215,12 +258,17 @@
   box-shadow: inset 0 1.5px 2px rgba(15, 17, 21, 0.12);
   overflow: hidden;
   transform-origin: center;
-  animation: pet-blink 7.4s ease-in-out infinite;
-  /* 状态换脸时眼睛渐变过渡（大小/位置/描边/镜圈），不是瞬切——表情是「变」过去的。 */
+  animation: pet-blink var(--pet-blink-period, 7.4s) ease-in-out infinite;
+  /* 状态换脸时眼睛渐变过渡（大小/位置/描边/镜圈），不是瞬切——表情是「变」过去的。
+     大小与位置走 scale / translate（合成属性，不触发 layout）；描边与底色是绘制属性。
+     transform 留给眨眼（pet-blink 动的是 transform），两者互不覆盖。 */
   transition:
-    width 0.32s ease, height 0.32s ease, top 0.32s ease,
-    border-color 0.32s ease, border-width 0.32s ease,
-    border-radius 0.32s ease, background-color 0.32s ease;
+    scale var(--pet-dur-base) var(--pet-ease-elastic),
+    translate var(--pet-dur-base) var(--pet-ease-elastic),
+    border-color var(--pet-dur-base) var(--pet-ease-standard),
+    border-width var(--pet-dur-base) var(--pet-ease-standard),
+    border-radius var(--pet-dur-base) var(--pet-ease-standard),
+    background-color var(--pet-dur-base) var(--pet-ease-standard);
 }
 
 .eyeLeft {
@@ -241,12 +289,14 @@
   border-radius: 50%;
   /* 红球的绿瞳：吧唧球默认脸的招牌配色。状态换脸时由状态段覆盖。 */
   background: radial-gradient(circle at 42% 36%, #55bd6e 0%, #2f9e50 62%);
-  transform: translate(var(--pet-look-x), var(--pet-look-y));
+  /* 初值；实际位移由 JS 写内联 transform（直接写元素，失效范围最小）。 */
+  transform: translate(0, 0);
   /* 丝滑的关键：视线永远在「滑」，不在「跳」。曲线要长而软，
      指针跟随像目光被牵过去，扫视像目光自己溜达过去。 */
   transition:
-    transform 0.32s cubic-bezier(0.25, 0.75, 0.3, 1),
-    width 0.3s ease, height 0.3s ease, margin 0.3s ease;
+    transform var(--pet-dur-base) cubic-bezier(0.25, 0.75, 0.3, 1),
+    scale var(--pet-dur-base) var(--pet-ease-elastic),
+    translate var(--pet-dur-base) var(--pet-ease-elastic);
 }
 
 .glint {
@@ -257,7 +307,7 @@
   height: 32%;
   border-radius: 50%;
   background: rgba(255, 255, 255, 0.92);
-  transform: translate(var(--pet-look-x), var(--pet-look-y));
+  transform: translate(0, 0);
   transition: transform 0.32s cubic-bezier(0.25, 0.75, 0.3, 1);
 }
 
@@ -270,7 +320,7 @@
   height: 15%;
   border-radius: 50%;
   background: rgba(255, 255, 255, 0.85);
-  transform: translate(var(--pet-look-x), var(--pet-look-y));
+  transform: translate(0, 0);
   transition: transform 0.32s cubic-bezier(0.25, 0.75, 0.3, 1);
 }
 
@@ -326,8 +376,11 @@
   background: light-dark(#20242a, #101214);
   transform: rotate(-7deg);
   transition:
-    transform 0.3s ease, border-radius 0.3s ease, height 0.3s ease,
-    width 0.3s ease, margin 0.3s ease, background-color 0.3s ease;
+    transform var(--pet-dur-base) var(--pet-ease-standard),
+    border-radius var(--pet-dur-base) var(--pet-ease-standard),
+    scale var(--pet-dur-base) var(--pet-ease-elastic),
+    translate var(--pet-dur-base) var(--pet-ease-elastic),
+    background-color var(--pet-dur-base) var(--pet-ease-standard);
 }
 
 .pet[data-state='resting'] .mouth::before {
@@ -384,7 +437,14 @@
   bottom: 94%;
   transform: translateX(calc(-50% + var(--pet-edge-shift, 0px))) translateY(6px) scale(0.94);
   transform-origin: 50% 100%;
+  /* 气泡的宽度不靠「收缩到合适」算：绝对定位元素的收缩宽度在
+     overflow-wrap: anywhere 下会被压成一个字宽（实测气泡竖成一条）。
+     直接按内容宽度给值、再用 max-width 封顶——短句自然宽，
+     长句到 220px 后折行。 */
+  width: max-content;
   max-width: 220px;
+  white-space: normal;
+  overflow-wrap: break-word;
   padding: 7px 12px;
   border-radius: 14px;
   background: var(--dsw-alias-bg-module-platform, light-dark(#f9fafb, #353638));
@@ -393,10 +453,9 @@
   color: var(--dsw-alias-label-primary, light-dark(#0f1115, #f9fafb));
   font-size: 12px;
   line-height: 18px;
-  white-space: nowrap;
   opacity: 0;
   pointer-events: none;
-  transition: opacity 0.18s ease, transform 0.18s cubic-bezier(0.2, 0.9, 0.3, 1);
+  transition: opacity 0.18s ease, transform 0.18s var(--pet-ease-emphasized);
 }
 
 .bubble[data-visible='true'] {
@@ -635,29 +694,35 @@
   animation: pet-work 2.1s ease-in-out infinite;
 }
 
+/* 镜片是真的透明：透出当前球色，任何角色戴上都不违和。
+   尺寸用 scale 表达（21/18）；镜圈的描边宽度按同一个比例回调，
+   渲染出来仍是 2px。 */
 .pet[data-state='working'] .eyeLeft,
 .pet[data-state='working'] .eyeRight {
-  width: 21%;
-  height: 22%;
+  scale: 1.1334 1;
+  translate: 6.68% 0;
   border: 2px solid #d9c74a;
   border-radius: 30%;
-  /* 镜片是真的透明：透出当前球色，任何角色戴上都不违和。 */
   background: transparent;
   animation: none;
 }
 
 /* 镜片里的白眼珠：比镜圈小一圈，瞳孔在其上。 */
+/* 镜片跟着眼睛一起放大，所以布局尺寸要按同一个比例（1/1.1667）回调，
+   渲染出来才和改动前一致。 */
 .pet[data-state='working'] .eyeLeft::before,
 .pet[data-state='working'] .eyeRight::before {
   content: '';
   position: absolute;
   left: 50%;
   top: 50%;
-  width: 62%;
+  width: 63.8%;
   height: 70%;
-  margin: -35% 0 0 -31%;
+  margin: -40.8% 0 0 -31.9%;
   border-radius: 50%;
-  background: radial-gradient(circle at 50% 32%, #ffffff 0%, #f2f0e8 100%);
+  /* 半径用百分比写死：默认的 farthest-corner 会随盒宽变化，
+     缩放后白核比改动前小 1px。94.8%/80.2% 等价于原来的 circle 半径。 */
+  background: radial-gradient(ellipse 94.8% 80.2% at 50% 32%, #ffffff 0%, #f2f0e8 100%);
 }
 
 /* 镜架的中梁：两片镜圈之间的那一条，金丝眼镜的辨识度全靠它。 */
@@ -673,10 +738,11 @@
   background: #d9c74a;
 }
 
+/* 镜框里的瞳孔：尺寸用 scale 表达（36/66、40/66），
+   位置微调 0.44px（-3.64%）与改动前对齐。 */
 .pet[data-state='working'] .pupil {
-  width: 36%;
-  height: 40%;
-  margin: -20% 0 0 -18%;
+  scale: 0.5613 0.6062;
+  translate: 0 -7.7%;
   background: radial-gradient(circle at 42% 36%, #4a5058 0%, light-dark(#23272c, #0d0f12) 62%);
 }
 
@@ -691,10 +757,9 @@
 }
 
 .pet[data-state='working'] .mouth {
-  width: 10%;
-  height: 3.5%;
-  margin-left: -5%;
-  border-radius: 2px;
+  scale: 0.7692 0.875;
+  /* 圆角随非等比缩放会走形：X/Y 分别按各自的比例补偿。 */
+  border-radius: 2.6px 2.29px;
   transform: rotate(0deg);
 }
 
@@ -709,15 +774,17 @@
 }
 
 /* 眯眼：红弧线「︶」，惬意且有点得意；弧线是硬件脸，不参与眨眼。 */
+/* 眯眼弧线：高度 9/22、宽度 17/18；弧线本身要 3.5px 厚，
+   描边宽度按同一比例放大（3.5/0.4091），渲染出来仍是 3.5px。
+   弧线的落点靠 translate 回调（-11.36%），与改动前逐像素对齐。 */
 .pet[data-state='waiting'] .eyeLeft,
 .pet[data-state='waiting'] .eyeRight {
-  top: 41%;
-  width: 17%;
-  height: 9%;
+  scale: 0.9439 0.4141;
+  translate: -2.79% -15.88%;
   background: transparent;
   box-shadow: none;
   border-radius: 0 0 50% 50% / 0 0 100% 100%;
-  border-bottom: 3.5px solid #cf4436;
+  border-bottom: 7px solid #cf4436;
   animation: none;
 }
 
@@ -728,11 +795,13 @@
 }
 
 /* 张嘴笑：上排小白牙 + 深色口腔——笑着等你。 */
+/* 张嘴笑：上排小白牙 + 深色口腔——笑着等你。
+   尺寸 20/13 × 15/4；圆角的 px 部分按横向比例回调（5/1.5385），
+   百分比部分随盒同比缩放，渲染结果与改动前一致。 */
 .pet[data-state='waiting'] .mouth {
-  width: 20%;
-  height: 15%;
-  margin-left: -10%;
-  border-radius: 5px 5px 60% 60% / 5px 5px 70% 70%;
+  scale: 1.5385 3.75;
+  translate: 0 137.5%;
+  border-radius: 3.25px 1.33px 3.25px 1.33px 60% 70% 60% 70%;
   background: linear-gradient(180deg, #ffffff 0%, #ffffff 32%, #40271c 32%, #2a1810 100%);
   transform: rotate(0deg);
 }
@@ -791,9 +860,7 @@
 }
 
 .pet[data-state='celebrating'] .mouth {
-  width: 26%;
-  height: 18%;
-  margin-left: -13%;
+  scale: 2 4.5;
   border-radius: 0 0 60% 60%;
   background: light-dark(#1b1f24, #0b0d10);
   transform: rotate(0deg);
@@ -801,6 +868,9 @@
 
 .pet[data-state='celebrating'] .tongue {
   display: block;
+  /* 舌头是嘴的子元素，跟着嘴一起缩放——布局尺寸要按同一比例回调。 */
+  width: 30.7%;
+  height: 35%;
 }
 
 .pet[data-state='celebrating'] .sparkle:nth-child(1) {
@@ -832,17 +902,16 @@
 
 .pet[data-state='error'] .eyeLeft,
 .pet[data-state='error'] .eyeRight {
-  width: 19%;
-  height: 23%;
+  scale: 1.0555 1.045;
+  translate: 2.79% 2.28%;
   animation: none;
 }
 
-/* 橙色小瞳孔缩在眼白上部——往上瞟的一脸茫然。 */
+/* 橙色小瞳孔缩在眼白上部——往上瞟的一脸茫然。
+   尺寸 44/66；往上瞟的那一下用 translate 表达（-4.55%，按缩放比例回调）。 */
 .pet[data-state='error'] .pupil {
-  top: 40%;
-  width: 44%;
-  height: 44%;
-  margin: -22% 0 0 -22%;
+  scale: 0.6663 0.6658;
+  translate: 0 -18.5%;
   background: radial-gradient(circle at 42% 36%, #f6a04c 0%, #e07f2e 62%);
 }
 
@@ -857,10 +926,8 @@
 
 /* 懵住的嘴：一条拉平的直线，微微下坠。 */
 .pet[data-state='error'] .mouth {
-  width: 19%;
-  height: 3.5%;
-  margin-left: -9.5%;
-  border-radius: 3px;
+  scale: 1.4615 0.875;
+  border-radius: 2.05px 3.43px;
   transform: rotate(3deg);
 }
 
@@ -886,8 +953,7 @@
 
 .pet[data-state='sleeping'] .eyeLeft,
 .pet[data-state='sleeping'] .eyeRight {
-  height: 4%;
-  top: 46%;
+  scale: 1 0.1817;
   animation: none;
   background: light-dark(#1b1f24, #0b0d10);
 }
@@ -899,10 +965,8 @@
 }
 
 .pet[data-state='sleeping'] .mouth {
-  width: 9%;
-  height: 3%;
-  margin-left: -4.5%;
-  border-radius: 3px;
+  scale: 0.6923 0.75;
+  border-radius: 4.33px 4px;
   transform: rotate(0deg);
 }
 
@@ -921,11 +985,17 @@
   opacity: 0.6;
 }
 
+/* 拎起来时眼睛瞪大：拖拽中是连续动作，这一态不参与形变过渡，
+   直接改布局盒（一次重排，不影响其他状态）。 */
 .pet[data-dragging='true'] .eyeLeft,
 .pet[data-dragging='true'] .eyeRight {
   height: 26%;
+  scale: 1 1;
+  translate: none;
 }
 
+/* 被拎起来的「o」嘴：拖拽中是连续动作，这一态直接改布局盒，
+   不参与形变过渡（scale/translate 复位，免得叠上别的状态的缩放）。 */
 .pet[data-dragging='true'] .mouth {
   width: 8%;
   height: 12%;
@@ -934,6 +1004,8 @@
   border: 2.5px solid light-dark(#1b1f24, #0b0d10);
   background: transparent;
   transform: rotate(0deg);
+  scale: 1 1;
+  translate: none;
 }
 
 /* 被拎起来的「o」嘴不带撇嘴的小钩。 */
@@ -1111,11 +1183,35 @@
   animation: none !important;
 }
 
+/* 「关」档要真的什么都不动：几何过渡（眼睛/嘴/腮红/气泡/影子）也得停，
+   否则用户选的是「不动画」，拿到的却是「动得更慢」。 */
 .pet[data-motion='off'] .pupil,
 .pet[data-motion='off'] .glint,
 .pet[data-motion='off'] .glintDot,
-.pet[data-motion='off'] .hit {
+.pet[data-motion='off'] .hit,
+.pet[data-motion='off'] .eyeLeft,
+.pet[data-motion='off'] .eyeRight,
+.pet[data-motion='off'] .mouth,
+.pet[data-motion='off'] .blush,
+.pet[data-motion='off'] .bubble,
+.pet[data-motion='off'] .shadow {
   transition: none !important;
+}
+
+/* 轻柔档：原来只收了几处动画幅度，其余（待机呼吸、打盹、光环、高光、眨眼）
+   仍是全量——用户选「轻柔」拿到的还是满幅度。现在统一收一档。 */
+.pet[data-motion='subtle'] {
+  --pet-aura-scale: 1.02;
+  --pet-sheen-shift: -0.4%;
+  --pet-blink-period: 9.4s;
+}
+
+.pet[data-motion='subtle'][data-state='resting'] .body {
+  animation: pet-rest-calm 6.4s ease-in-out infinite;
+}
+
+.pet[data-motion='subtle'][data-state='sleeping'] .body {
+  animation: pet-sleep-calm 6.2s ease-in-out infinite;
 }
 
 .pet[data-motion='subtle'][data-state='working'] .body {
@@ -1195,7 +1291,7 @@
 
 @keyframes pet-aura {
   0%, 100% { opacity: 0.75; transform: scale(1); }
-  50% { opacity: 1; transform: scale(1.06); }
+  50% { opacity: 1; transform: scale(var(--pet-aura-scale, 1.06)); }
 }
 
 @keyframes pet-sparkle {
@@ -1268,8 +1364,8 @@
 /* 高光呼吸：与待机呼吸同周期，球面反光跟着轻轻漂——「活」不只身子在动。 */
 @keyframes pet-sheen {
   0%, 100% { transform: translate(0, 0); }
-  30% { transform: translate(-1%, -0.8%); }
-  65% { transform: translate(0.8%, 0.6%); }
+  30% { transform: translate(var(--pet-sheen-shift, -1%), calc(var(--pet-sheen-shift, -1%) * 0.8)); }
+  65% { transform: translate(calc(var(--pet-sheen-shift, -1%) * -0.8), calc(var(--pet-sheen-shift, -1%) * 0.6)); }
 }
 
 /* 菜单弹现：从宠物那一侧（transform-origin 按 data-below 翻转）长出来。 */
@@ -1388,6 +1484,18 @@
   100% { transform: translateX(0) scale(1); }
 }
 
+/* 轻柔档的待机/打盹：幅度更小、节奏更慢。 */
+@keyframes pet-rest-calm {
+  0%, 100% { transform: translateY(0) rotate(0deg) scaleY(1); }
+  30% { transform: translateY(-1px) rotate(-0.5deg) scaleY(1.01); }
+  65% { transform: translateY(0) rotate(0.5deg) scaleY(0.998); }
+}
+
+@keyframes pet-sleep-calm {
+  0%, 100% { transform: translateY(0) rotate(-2deg) scale(1, 1); }
+  50% { transform: translateY(1.2px) rotate(-2deg) scale(1.01, 1.02); }
+}
+
 /* 轻柔档的状态动画：保留节奏，去掉弹跳与位移幅度。 */
 @keyframes pet-work-calm {
   0%, 100% { transform: translateY(0) rotate(-0.9deg); }
@@ -1435,7 +1543,12 @@
   .glintDot,
   .hit,
   .body,
-  .bubble {
+  .bubble,
+  .eyeLeft,
+  .eyeRight,
+  .mouth,
+  .blush,
+  .shadow {
     transition: none !important;
   }
 }
@@ -1460,6 +1573,8 @@ code { color: #999; }
   <span class="bubble" data-visible="false"></span>
   <button type="button" class="hit">
     <span class="motion">
+      <span class="swing">
+        <span class="squash">
       <span class="body">
         <span class="sheen"></span>
         <span class="rim"></span>
@@ -1471,6 +1586,8 @@ code { color: #999; }
           <span class="mouth"><span class="tongue"></span></span>
         </span>
         <span class="sweat"></span>
+      </span>
+        </span>
       </span>
     </span>
     <span class="shock"></span>
@@ -1484,6 +1601,8 @@ code { color: #999; }
   <span class="bubble" data-visible="false"></span>
   <button type="button" class="hit">
     <span class="motion">
+      <span class="swing">
+        <span class="squash">
       <span class="body">
         <span class="sheen"></span>
         <span class="rim"></span>
@@ -1495,6 +1614,8 @@ code { color: #999; }
           <span class="mouth"><span class="tongue"></span></span>
         </span>
         <span class="sweat"></span>
+      </span>
+        </span>
       </span>
     </span>
     <span class="shock"></span>
@@ -1508,6 +1629,8 @@ code { color: #999; }
   <span class="bubble" data-visible="false"></span>
   <button type="button" class="hit">
     <span class="motion">
+      <span class="swing">
+        <span class="squash">
       <span class="body">
         <span class="sheen"></span>
         <span class="rim"></span>
@@ -1519,6 +1642,8 @@ code { color: #999; }
           <span class="mouth"><span class="tongue"></span></span>
         </span>
         <span class="sweat"></span>
+      </span>
+        </span>
       </span>
     </span>
     <span class="shock"></span>
@@ -1532,6 +1657,8 @@ code { color: #999; }
   <span class="bubble" data-visible="false"></span>
   <button type="button" class="hit">
     <span class="motion">
+      <span class="swing">
+        <span class="squash">
       <span class="body">
         <span class="sheen"></span>
         <span class="rim"></span>
@@ -1543,6 +1670,8 @@ code { color: #999; }
           <span class="mouth"><span class="tongue"></span></span>
         </span>
         <span class="sweat"></span>
+      </span>
+        </span>
       </span>
     </span>
     <span class="shock"></span>
@@ -1556,6 +1685,8 @@ code { color: #999; }
   <span class="bubble" data-visible="false"></span>
   <button type="button" class="hit">
     <span class="motion">
+      <span class="swing">
+        <span class="squash">
       <span class="body">
         <span class="sheen"></span>
         <span class="rim"></span>
@@ -1567,6 +1698,8 @@ code { color: #999; }
           <span class="mouth"><span class="tongue"></span></span>
         </span>
         <span class="sweat"></span>
+      </span>
+        </span>
       </span>
     </span>
     <span class="shock"></span>
@@ -1580,6 +1713,8 @@ code { color: #999; }
   <span class="bubble" data-visible="false"></span>
   <button type="button" class="hit">
     <span class="motion">
+      <span class="swing">
+        <span class="squash">
       <span class="body">
         <span class="sheen"></span>
         <span class="rim"></span>
@@ -1591,6 +1726,8 @@ code { color: #999; }
           <span class="mouth"><span class="tongue"></span></span>
         </span>
         <span class="sweat"></span>
+      </span>
+        </span>
       </span>
     </span>
     <span class="shock"></span>
@@ -1607,6 +1744,8 @@ code { color: #999; }
   <span class="bubble" data-visible="false"></span>
   <button type="button" class="hit">
     <span class="motion">
+      <span class="swing">
+        <span class="squash">
       <span class="body">
         <span class="sheen"></span>
         <span class="rim"></span>
@@ -1618,6 +1757,8 @@ code { color: #999; }
           <span class="mouth"><span class="tongue"></span></span>
         </span>
         <span class="sweat"></span>
+      </span>
+        </span>
       </span>
     </span>
     <span class="shock"></span>
@@ -1631,6 +1772,8 @@ code { color: #999; }
   <span class="bubble" data-visible="false"></span>
   <button type="button" class="hit">
     <span class="motion">
+      <span class="swing">
+        <span class="squash">
       <span class="body">
         <span class="sheen"></span>
         <span class="rim"></span>
@@ -1642,6 +1785,8 @@ code { color: #999; }
           <span class="mouth"><span class="tongue"></span></span>
         </span>
         <span class="sweat"></span>
+      </span>
+        </span>
       </span>
     </span>
     <span class="shock"></span>
@@ -1655,6 +1800,8 @@ code { color: #999; }
   <span class="bubble" data-visible="false"></span>
   <button type="button" class="hit">
     <span class="motion">
+      <span class="swing">
+        <span class="squash">
       <span class="body">
         <span class="sheen"></span>
         <span class="rim"></span>
@@ -1666,6 +1813,8 @@ code { color: #999; }
           <span class="mouth"><span class="tongue"></span></span>
         </span>
         <span class="sweat"></span>
+      </span>
+        </span>
       </span>
     </span>
     <span class="shock"></span>
@@ -1679,6 +1828,8 @@ code { color: #999; }
   <span class="bubble" data-visible="false"></span>
   <button type="button" class="hit">
     <span class="motion">
+      <span class="swing">
+        <span class="squash">
       <span class="body">
         <span class="sheen"></span>
         <span class="rim"></span>
@@ -1690,6 +1841,8 @@ code { color: #999; }
           <span class="mouth"><span class="tongue"></span></span>
         </span>
         <span class="sweat"></span>
+      </span>
+        </span>
       </span>
     </span>
     <span class="shock"></span>
@@ -1703,6 +1856,8 @@ code { color: #999; }
   <span class="bubble" data-visible="false"></span>
   <button type="button" class="hit">
     <span class="motion">
+      <span class="swing">
+        <span class="squash">
       <span class="body">
         <span class="sheen"></span>
         <span class="rim"></span>
@@ -1714,6 +1869,8 @@ code { color: #999; }
           <span class="mouth"><span class="tongue"></span></span>
         </span>
         <span class="sweat"></span>
+      </span>
+        </span>
       </span>
     </span>
     <span class="shock"></span>
@@ -1730,6 +1887,8 @@ code { color: #999; }
   <span class="bubble" data-visible="false"></span>
   <button type="button" class="hit">
     <span class="motion">
+      <span class="swing">
+        <span class="squash">
       <span class="body">
         <span class="sheen"></span>
         <span class="rim"></span>
@@ -1741,6 +1900,8 @@ code { color: #999; }
           <span class="mouth"><span class="tongue"></span></span>
         </span>
         <span class="sweat"></span>
+      </span>
+        </span>
       </span>
     </span>
     <span class="shock"></span>
@@ -1754,6 +1915,8 @@ code { color: #999; }
   <span class="bubble" data-visible="false"></span>
   <button type="button" class="hit">
     <span class="motion">
+      <span class="swing">
+        <span class="squash">
       <span class="body">
         <span class="sheen"></span>
         <span class="rim"></span>
@@ -1765,6 +1928,8 @@ code { color: #999; }
           <span class="mouth"><span class="tongue"></span></span>
         </span>
         <span class="sweat"></span>
+      </span>
+        </span>
       </span>
     </span>
     <span class="shock"></span>
@@ -1778,6 +1943,8 @@ code { color: #999; }
   <span class="bubble" data-visible="false"></span>
   <button type="button" class="hit">
     <span class="motion">
+      <span class="swing">
+        <span class="squash">
       <span class="body">
         <span class="sheen"></span>
         <span class="rim"></span>
@@ -1789,6 +1956,8 @@ code { color: #999; }
           <span class="mouth"><span class="tongue"></span></span>
         </span>
         <span class="sweat"></span>
+      </span>
+        </span>
       </span>
     </span>
     <span class="shock"></span>
@@ -1802,6 +1971,8 @@ code { color: #999; }
   <span class="bubble" data-visible="false"></span>
   <button type="button" class="hit">
     <span class="motion">
+      <span class="swing">
+        <span class="squash">
       <span class="body">
         <span class="sheen"></span>
         <span class="rim"></span>
@@ -1813,6 +1984,8 @@ code { color: #999; }
           <span class="mouth"><span class="tongue"></span></span>
         </span>
         <span class="sweat"></span>
+      </span>
+        </span>
       </span>
     </span>
     <span class="shock"></span>
@@ -1826,6 +1999,8 @@ code { color: #999; }
   <span class="bubble" data-visible="false"></span>
   <button type="button" class="hit">
     <span class="motion">
+      <span class="swing">
+        <span class="squash">
       <span class="body">
         <span class="sheen"></span>
         <span class="rim"></span>
@@ -1837,6 +2012,8 @@ code { color: #999; }
           <span class="mouth"><span class="tongue"></span></span>
         </span>
         <span class="sweat"></span>
+      </span>
+        </span>
       </span>
     </span>
     <span class="shock"></span>
@@ -1850,6 +2027,8 @@ code { color: #999; }
   <span class="bubble" data-visible="false"></span>
   <button type="button" class="hit">
     <span class="motion">
+      <span class="swing">
+        <span class="squash">
       <span class="body">
         <span class="sheen"></span>
         <span class="rim"></span>
@@ -1861,6 +2040,8 @@ code { color: #999; }
           <span class="mouth"><span class="tongue"></span></span>
         </span>
         <span class="sweat"></span>
+      </span>
+        </span>
       </span>
     </span>
     <span class="shock"></span>

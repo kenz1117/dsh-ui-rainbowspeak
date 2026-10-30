@@ -37,7 +37,7 @@
 
 ### Pure decoration, zero intrusion
 
-No slots taken over, no host patches, no tools registered, no system-prompt injections. The rainbow ring is pure browser-side decoration: a `conic-gradient` ring masked down to the card edge, rotated by a registered custom property. Engines without `@property` degrade to a static gradient ring.
+No slots taken over, no host patches, no tools registered, no system-prompt injections. The rainbow ring is pure browser-side decoration: a `conic-gradient` ring masked down to the card edge, carried by a spinning layer so the flow costs the compositor instead of the main thread.
 
 The pet keeps the same promise: the only host-side addition is a **read-only** stream of turn boundaries (session identity, turn sequence, end reason) that carries **no chat content, no history, and no approval details**; the browser side only adds one floating entry to `shell.overlay` and changes nothing else in the host.
 
@@ -72,7 +72,7 @@ Classic rainbow / aurora / sunset / peach / ocean / cyberpunk neon — plus *fol
 
 ## 🌈 Features
 
-- **Rainbow marquee border** around the composer card (`[data-composer-card]` host anchor), flowing via a registered `@property` angle so the gradient genuinely animates. Engines without `@property` degrade to a static gradient ring.
+- **Rainbow marquee border** around the composer card (`[data-composer-card]` host anchor), flowing via a rotating gradient layer — the gradient is painted once and then spun by the compositor, so the border costs **zero repaints per frame**.
 - **Desktop pet "Prism"**: sits on `shell.overlay` (the frame-wide floating layer the host recommends for draggable overlays), draggable, with a persisted position and a greeting bubble on tap. Drawn entirely in CSS geometry in a hand-drawn ba-ji-ball style — **no external assets**, hence no third-party artwork licensing question.
 - **Five playable characters**: Red, Yellow, Pink, Blue, Green — five independent characters, each with a signature pupil color (red ball / green pupils, yellow / red, pink / blue, blue / dark, green / orange). The color is the identity; expressions change with state. Switch anytime from the context menu or settings.
 - **It interacts**: pupils track your pointer on a gliding curve, a poke squashes it and pops candy hearts, dragging makes it swing with your momentum, and right-click (or `Shift+F10`) opens a small menu (character / watch scope / size / hide).
@@ -134,8 +134,8 @@ then run `pnpm install` in the profile directory and restart the host. With the 
 ## ⚙️ How it works
 
 - The plugin mounts a single `<style data-plugin>` stylesheet on apply and removes it on dispose (effect lifecycle).
-- `::before` on the composer card paints a `conic-gradient` covering the full color wheel; a `mask` composite cuts out the interior so only the edge band remains, rounded to the card radius. Ring width and flow period are consumed from `--dsh-rainbow-*` variables.
-- `--dsh-rainbow-angle` is registered as `<angle>` via `@property`, which is what makes the gradient's start angle interpolable; the keyframes rotate it 360°.
+- The border is two injected layers inside the composer card: a carrier that masks the gradient down to the card edge, and a square colour layer that spins about the card centre. `::before` stays as a static fallback for the moment before the layers are attached. Ring width and flow period are consumed from `--dsh-rainbow-*` variables.
+- The colour layer rotates 360° via `transform`, so the flow no longer depends on `@property` — and no longer repaints the whole card every frame (measured: 360 repaints per 3s → 0).
 - User preferences and session state are projected onto `<html>` as `data-rainbow-*` attributes and inline CSS variables, so every toggle applies instantly without rebuilding the stylesheet.
 - The state bridge reads the host session seat and the global pending-interaction seat (approval/ask-user) — plugin-level only, no agent-loop involvement.
 - The pet's **host half** provides a read-only `rainbowPet` service: it listens for `turn/start` / `turn/end` on `session/event` and projects only boundary metadata (session identity, turn sequence, end reason) — no history, no content, no approvals. It contributes that contract through the `./typert` subpath.
@@ -150,15 +150,26 @@ pnpm test           # vitest suite (node half, preferences clamping, state proje
 pnpm typecheck      # tsc --noEmit
 pnpm bundle         # tsdown: lib/index.js + lib/remote.js + lib/typert.host.js (node half) + lib/client.js (browser IIFE)
 pnpm preview        # regenerate preview/pet-states.html: an offline sheet of the six moods
+pnpm bench:anim     # animation benchmark: same-machine before/after, sampling paint/recalc/layout
 ```
 
 The `client` half is a self-contained IIFE injected into the host web client; the `node` half carries the rainbow state bridge and the pet's read-only boundary service, and exports the `./typert` host-face manifest.
 
 `preview/pet-states.html` needs no host: it inlines `src/client/pet.module.css` verbatim next to six static markups. Run `pnpm preview` after a CSS change and open it in a browser to compare all six moods at once — far quicker than clicking through the real host.
 
+Animation quality should not be judged by feel alone. `tools/anim-bench/` is a reproducible harness that extracts the real styles and markup from the source, runs headless Chromium, and samples `Paint`, `RasterTask`, style-recalc and layout counters:
+
+```sh
+pnpm bench:anim               # same-machine before/after, with per-variant self-checks
+pnpm bench:pet-visual        # visual regression: snapshot the six moods and diff them
+pnpm bench:refactor-visual   # before/after visual equivalence of the expression refactor
+```
+
+The audit and the outcomes live in [`docs/animation-audit.md`](docs/animation-audit.md).
+
 ## 🤝 Compatibility
 
-- Client platform: `web` (desktop/web host renders). Requires `@property` support for the flowing animation (all Chromium/Electron builds fine); other engines show a static ring.
+- Client platform: `web` (desktop/web host renders). The flow is driven by a rotating layer, so it needs no `@property` support; if the layers cannot be attached the border degrades to a static gradient ring.
 - Peer: `@deepseek-ai/cordis` (provided by the host at runtime).
 - The pet needs host support for Typert (`@deepseek-ai/dsh-typert-loader`) and the client Remote runtime. Without them the plugin still loads, and the pet degrades to "client session state only".
 

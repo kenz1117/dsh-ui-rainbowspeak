@@ -55,14 +55,18 @@ describe('client apply', () => {
     expect(tag?.textContent).toContain('[data-composer-card]')
   })
 
-  it('样式表覆盖实现要素：@property、conic-gradient、mask 挖空、keyframes、配色/位置/状态/开关块与降级', () => {
+  it('样式表覆盖实现要素：旋转图层、conic-gradient、mask 挖空、keyframes、配色/位置/状态/开关块与降级', () => {
     apply(fakeCtx())
     const css = document.head.querySelector('style[data-plugin]')?.textContent ?? ''
-    expect(css).toContain('@property --dsh-rainbow-angle')
-    expect(css).toContain("syntax: '<angle>'")
+    // 流动由合成器承担：载体层管遮罩，色彩层自转。
+    expect(css).toContain('.rs-ring')
+    expect(css).toContain('.rs-conic')
+    expect(css).toContain('@keyframes dsh-rainbow-spin')
+    expect(css).toContain('rotate(360deg)')
+    // 静态兜底：图层没注入时也有一圈描边。
+    expect(css).toContain('.rs-has-ring::before')
     expect(css).toContain('conic-gradient(')
     expect(css).toContain('mask-composite: exclude')
-    expect(css).toContain('@keyframes dsh-rainbow-flow')
     // P0：7 种配色方案段 + 显示位置段 + 总开关段。
     for (const palette of ['rainbow', 'aurora', 'sunset', 'peach', 'ocean', 'cyberpunk', 'theme']) {
       expect(css).toContain(`data-rainbow-palette="${palette}"`)
@@ -83,6 +87,28 @@ describe('client apply', () => {
     expect(css).toContain('html[data-rainbow-breathe]')
     // 系统偏好降级。
     expect(css).toContain('prefers-reduced-motion')
+  })
+
+  it('旋转图层：注入载体层与色彩层，卡片挂上 rs-has-ring，卸载时清干净', () => {
+    const ctx = fakeCtx()
+    const card = document.createElement('div')
+    card.setAttribute('data-composer-card', '')
+    document.body.appendChild(card)
+    apply(ctx)
+    const ring = card.querySelector('.rs-ring')
+    const conic = card.querySelector('.rs-conic')
+    expect(ring).not.toBeNull()
+    expect(conic).not.toBeNull()
+    expect(conic?.parentElement?.className).toContain('rs-ring')
+    expect(card.classList.contains('rs-has-ring')).toBe(true)
+    // 重复注入不应叠出第二层。
+    apply(ctx)
+    expect(card.querySelectorAll('.rs-ring').length).toBe(1)
+    // 卸载：注入的 DOM 与标记都要清掉。
+    disposeAll(ctx)
+    expect(card.querySelector('.rs-ring')).toBeNull()
+    expect(card.classList.contains('rs-has-ring')).toBe(false)
+    card.remove()
   })
 
   it('apply 下发默认偏好到 <html>（无存储值时）', () => {

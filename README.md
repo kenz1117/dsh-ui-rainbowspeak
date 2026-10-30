@@ -37,7 +37,7 @@
 
 ### 纯装饰，零侵入
 
-不接管任何插槽、不打宿主补丁、不注册工具、不注入系统提示。彩虹环是纯浏览器端装饰：一条 `conic-gradient` 圆环经蒙版只留卡片边缘，靠注册的自定义属性旋转流动。引擎不支持 `@property` 时自动降级为静态渐变环。
+不接管任何插槽、不打宿主补丁、不注册工具、不注入系统提示。彩虹环是纯浏览器端装饰：一条 `conic-gradient` 圆环经蒙版只留卡片边缘，由**旋转图层**承载流动——渐变只画一次，之后交给合成器转，主线程不再为它每帧重绘。
 
 桌宠也遵守同一条边界：宿主侧只多了一条**只读**的回合边界流（会话身份 + 回合序号 + 结束原因），**不携带任何聊天内容、历史或审批细节**；浏览器侧只往 `shell.overlay` 挂一个浮动条目，不改宿主的任何既有界面。
 
@@ -72,7 +72,7 @@
 
 ## 🌈 功能
 
-- **彩虹跑马灯边框**：输入框卡片（`[data-composer-card]` 宿主锚点）四周流动彩带，经注册的 `@property` 角度驱动渐变真实动起来；不支持 `@property` 的引擎降级为静态渐变环。
+- **彩虹跑马灯边框**：输入框卡片（`[data-composer-card]` 宿主锚点）四周流动彩带，由旋转图层驱动——渐变只画一次再交给合成器转，**每帧重绘次数实测 360 → 0**。
 - **桌面宠物「小虹」**：落在 `shell.overlay`（帧级浮动层，宿主推荐给「可拖拽置顶小挂件」的席位），可拖拽、位置持久化、点一下冒泡打招呼；形象是纯 CSS 几何临摹的吧唧球简笔风，**无任何外部素材**，因此没有第三方形象的授权问题。
 - **五个可选角色**：红红 / 黄黄 / 粉粉 / 蓝蓝 / 绿绿——五颗球是五个独立角色，各有招牌瞳色（红球绿瞳、黄球红瞳、粉球蓝瞳、蓝球深瞳、绿球橙瞳）；球色是身份、表情随状态变化，右键菜单或设置面板随时切换。
 - **会互动**：瞳孔跟随指针（滑动曲线）、戳一下挤压回弹并冒糖果心、拖拽时顺惯性摆动、右键（或 `Shift+F10`）打开小菜单（角色 / 关注范围 / 大小 / 隐藏）。
@@ -136,7 +136,7 @@ dsh plugin add @kenz1117/dsh-ui-rainbowspeak
 
 - 插件在 apply 时挂载单张 `<style data-plugin>` 样式表，dispose 时移除（effect 生命周期）。
 - 输入框卡片的 `::before` 绘制覆盖整个色轮的 `conic-gradient`；`mask` 合成把内部裁掉，只留边缘环带，圆角对齐卡片半径。环宽与流速从 `--dsh-rainbow-*` 变量读取。
-- `--dsh-rainbow-angle` 经 `@property` 注册为 `<angle>`，渐变起始角因此可插值；关键帧让它旋转 360°。
+- 边框由注入卡片的两层组成：载体层负责蒙版（只留边缘色带），色彩层是一张正方形锥形渐变，绕卡片中心自转 360°——不再需要 `@property` 注册插值角度。
 - 用户偏好与会话状态投影到 `<html>` 的 `data-rainbow-*` 属性与内联 CSS 变量，每个开关即时生效、无需重建样式表。
 - 状态桥读取宿主会话座位与全局待交互座位（审批/ask-user）——只在插件层，不涉及 agent-loop。
 - 桌宠的**宿主半**提供一条只读服务 `rainbowPet`：监听 `session/event` 的 `turn/start` / `turn/end`，只投影边界元数据（会话身份、回合序号、结束原因），不读历史、不留内容、不碰审批。经 `./typert` 子路径贡献给 Typert 网关。
@@ -151,15 +151,25 @@ pnpm test           # vitest 套件（node 半边、偏好钳制、状态投影�
 pnpm typecheck      # tsc --noEmit
 pnpm bundle         # tsdown: lib/index.js + lib/remote.js + lib/typert.host.js（node 半边）+ lib/client.js（浏览器 IIFE）
 pnpm preview        # 生成 preview/pet-states.html：六种表情的离线对照页（改 CSS 后用它一眼看全）
+pnpm bench:anim     # 动画性能实测台：同机对照「现状 vs 优化变体」，采 Paint/样式重算/布局指标
 ```
 
 `client` 半边是注入宿主 web 客户端的自包含 IIFE；`node` 半边提供彩虹状态桥与桌宠的只读边界服务，并导出 `./typert` 宿主面清单。
 
 `preview/pet-states.html` 不依赖宿主：把 `src/client/pet.module.css` 原样内联，配六份静态标记。改完 CSS 跑一次 `pnpm preview`，浏览器打开即可对照六种状态——比每次都去宿主里点一遍快得多。
 
+动画性能不该只靠手感判断，`tools/anim-bench/` 是一套可复现的实测台（从源码抽取真实样式与标记，用 headless Chromium 采 `Paint`、`RasterTask`、样式重算与布局指标）：
+
+```sh
+pnpm bench:pet-visual        # 六种状态的视觉回归：拍快照 + 与参考图逐像素比对
+pnpm bench:refactor-visual   # 表情几何改造的视觉等价核对（改造前 vs 改造后）
+```
+
+评估与改造结论见 [`docs/animation-audit.md`](docs/animation-audit.md)。
+
 ## 🤝 兼容性
 
-- 客户端平台：`web`（desktop/web 宿主渲染）。流动动画需要 `@property` 支持（所有 Chromium/Electron 构建均可用）；其他引擎显示静态环。
+- 客户端平台：`web`（desktop/web 宿主渲染）。流动动画由**旋转图层**实现（渐变只画一次，之后交给合成器转），不再依赖 `@property`；引擎不支持时退回静态彩虹描边。
 - Peer：`@deepseek-ai/cordis`（由宿主在运行时提供）。
 - 桌宠需要宿主支持 Typert（`@deepseek-ai/dsh-typert-loader`）与客户端 Remote 运行时；缺失时插件照常加载，桌宠降级为「只看客户端会话状态」。
 

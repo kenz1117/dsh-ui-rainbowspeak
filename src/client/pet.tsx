@@ -169,14 +169,17 @@ export function PetRoot(props: PropsRuntime<'shell.overlay'>): React.ReactElemen
   const { useSessionStatus } = props
   const rootRef = useRef<HTMLDivElement>(null)
   const motionRef = useRef<HTMLSpanElement>(null)
+  const swingRef = useRef<HTMLSpanElement>(null)
+  const squashRef = useRef<HTMLSpanElement>(null)
   const menuRef = useRef<HTMLDivElement>(null)
   const dragRef = useRef<DragState | null>(null)
   const lastActivityRef = useRef<number>(Date.now())
   const heartIdRef = useRef(0)
-  const impulseRef = useRef<{ start: number; frame: number }>({ start: 0, frame: 0 })
+  const impulseRef = useRef<{ animation: Animation | null }>({ animation: null })
   const timersRef = useRef<number[]>([])
   const lastPokeAtRef = useRef<number | null>(null)
   const pressTimerRef = useRef(0)
+  const bubbleTimerRef = useRef(0)
   const patFiredRef = useRef(false)
   const spinSeqRef = useRef(0)
   const patSeqRef = useRef(0)
@@ -186,13 +189,18 @@ export function PetRoot(props: PropsRuntime<'shell.overlay'>): React.ReactElemen
   const lastInteractionAtRef = useRef(Date.now())
   const prevStateRef = useRef<PetState>('resting')
   const pointerLastMoveRef = useRef(0)
+  /** 跟随指针的六个元素（两眼各三件）：瞳孔与两处高光。 */
+  const lookRefs = useRef<Array<HTMLElement | null>>([])
+  /** 当前目光偏移（滚动目光只改 y，得知道 x 是多少）。 */
+  const lookStateRef = useRef({ x: 0, y: 0 })
 
   const [prefs, setPrefs] = useState<RainbowPrefs>(loadPrefs)
+  const [reducedMotion, setReducedMotion] = useState(false)
   const [notice, setNotice] = useState<PetNotice | null>(null)
   const [petState, setPetState] = useState<PetState>('resting')
   const [dragging, setDragging] = useState(false)
   const [hovered, setHovered] = useState(false)
-  const [bubbleUntil, setBubbleUntil] = useState(0)
+  const [bubbleOn, setBubbleOn] = useState(false)
   const [position, setPosition] = useState<{ x: number; y: number } | null>(null)
   const [currentSessionId, setCurrentSessionId] = useState<string | undefined>(() => readCurrentSessionId())
   const [remoteHealthy, setRemoteHealthy] = useState(false)
@@ -201,7 +209,7 @@ export function PetRoot(props: PropsRuntime<'shell.overlay'>): React.ReactElemen
   const [poking, setPoking] = useState(false)
   const [hearts, setHearts] = useState<readonly Heart[]>([])
   const [menuOpen, setMenuOpen] = useState(false)
-  const [flash, setFlash] = useState<{ key: RainbowKey; until: number } | null>(null)
+  const [flash, setFlash] = useState<RainbowKey | null>(null)
   const [spinning, setSpinning] = useState(false)
   const [dizzy, setDizzy] = useState(false)
   const [patting, setPatting] = useState(false)
@@ -218,16 +226,69 @@ export function PetRoot(props: PropsRuntime<'shell.overlay'>): React.ReactElemen
     timersRef.current.push(window.setTimeout(fn, ms))
   }, [])
 
+  // 系统级「减弱动态效果」：CSS 侧能停 animation/transition，但停不了 JS 写的
+  // transform（挤压回弹、拖拽摆动、瞳孔跟随）——这些要在 JS 侧一起停。
+  useEffect(() => {
+    if (typeof window.matchMedia !== 'function') return
+    const query = window.matchMedia('(prefers-reduced-motion: reduce)')
+    const sync = (): void => { setReducedMotion(query.matches) }
+    sync()
+    query.addEventListener('change', sync)
+    return () => { query.removeEventListener('change', sync) }
+  }, [])
+
+  /** 动效是否整体关闭：用户档位「关」或系统减弱动效。 */
+  const motionOff = prefs.petMotion === 'off' || reducedMotion
+
+  /** 跟随指针的六个元素的引用回调（稳定身份，避免每次渲染重新挂载）。 */
+  const lookRefCallbacks = useMemo(
+    () => Array.from({ length: 6 }, (_, index) => (el: HTMLElement | null) => {
+      lookRefs.current[index] = el
+    }),
+    [],
+  )
+
+  /**
+   * 把目光偏移写到六个跟随元素上。
+   *
+   * 直接写 transform，而不是写继承型 CSS 变量：变量挂在根上会让整棵桌宠
+   * 子树每帧失效重算（实测 240 次指针移动的纯重算：129ms → 66ms），只写这
+   * 六个元素，失效范围从「整棵树」缩到「六个元素」。
+   */
+  const applyLook = useCallback((x: number, y: number): void => {
+    lookStateRef.current = { x, y }
+    const t = `translate(${x.toFixed(2)}px, ${y.toFixed(2)}px)`
+    for (const el of lookRefs.current) {
+      if (el !== null) el.style.transform = t
+    }
+  }, [])
+
   useEffect(() => () => {
     for (const id of timersRef.current) window.clearTimeout(id)
     if (pressTimerRef.current !== 0) window.clearTimeout(pressTimerRef.current)
+    if (bubbleTimerRef.current !== 0) window.clearTimeout(bubbleTimerRef.current)
   }, [])
 
   /** 一次性台词：优先级高于状态台词，展示 FLASH_MS 后让位。 */
   const showFlash = useCallback((key: RainbowKey, ms: number = FLASH_MS): void => {
-    setFlash({ key, until: Date.now() + ms })
+    setFlash(key)
     later(() => { setFlash(null) }, ms)
   }, [later])
+
+  /**
+   * 气泡亮起 ms 毫秒后自动收起。
+   *
+   * 显隐必须由状态驱动：render 里读 `Date.now()` 拿不到「到期」这个信号——
+   * 定时器到点后没有重渲染源，气泡的显隐会滞留在上一次渲染的判断上。
+   */
+  const showBubbleFor = useCallback((ms: number): void => {
+    setBubbleOn(true)
+    if (bubbleTimerRef.current !== 0) window.clearTimeout(bubbleTimerRef.current)
+    bubbleTimerRef.current = window.setTimeout(() => {
+      bubbleTimerRef.current = 0
+      setBubbleOn(false)
+    }, ms)
+  }, [])
 
   // 入场动画：每次「出现」（首次挂载 / 从躲藏中叫回）随机挑一个登场方式。
   // 关掉动画（petMotion=off）就安静出现；躲藏期间重置标记，下次回来再演。
@@ -238,11 +299,11 @@ export function PetRoot(props: PropsRuntime<'shell.overlay'>): React.ReactElemen
     }
     if (enteredRef.current) return
     enteredRef.current = true
-    if (prefs.petMotion === 'off') return
+    if (motionOff) return
     const kind = pickEntrance()
     setEntrance(kind)
     later(() => { setEntrance(null) }, ENTRANCE_MS[kind])
-  }, [prefs.petEnabled, prefs.petMotion, later])
+  }, [prefs.petEnabled, motionOff, later])
 
   // 语言切换：订阅宿主 locale 的版本号，变了就重渲染。
   useSyncExternalStore(subscribePetLocale, getPetLocaleRevision, getPetLocaleRevision)
@@ -287,18 +348,16 @@ export function PetRoot(props: PropsRuntime<'shell.overlay'>): React.ReactElemen
   //   停一会儿、目光回中。看似自主的小动作是「活着感」的最大来源，
   //   比任何循环动画都管用。指针一动立即交还控制权。
   useEffect(() => {
+    // 「关」档与系统级减弱动效：瞳孔不该动（CSS 只管得到 transition，
+    // 变量/transform 的写入得在 JS 侧一起停掉）。
+    if (motionOff) return
     let frame = 0
     let pending: { x: number; y: number } | null = null
     let lastMoveAt = performance.now()
     let wanderTimer = 0
     let recoverTimer = 0
 
-    const writeLook = (x: number, y: number): void => {
-      const element = rootRef.current
-      if (!element) return
-      element.style.setProperty('--pet-look-x', `${x.toFixed(2)}px`)
-      element.style.setProperty('--pet-look-y', `${y.toFixed(2)}px`)
-    }
+    const writeLook = applyLook
     const clearWander = (): void => {
       if (wanderTimer !== 0) {
         window.clearTimeout(wanderTimer)
@@ -351,7 +410,7 @@ export function PetRoot(props: PropsRuntime<'shell.overlay'>): React.ReactElemen
       clearWander()
       if (frame !== 0) cancelAnimationFrame(frame)
     }
-  }, [])
+  }, [applyLook, motionOff])
 
   const statuses = useSessionStatus((map) => map)
 
@@ -447,7 +506,7 @@ export function PetRoot(props: PropsRuntime<'shell.overlay'>): React.ReactElemen
   // 只在指针闲着时才多管闲事（指针在动就只跟指针）；高频滚动要节流，
   // 小步滚动不值得看一眼。这是「住在窗口里」而不是「贴在窗口上」的分野。
   useEffect(() => {
-    if (prefs.petMotion === 'off') return
+    if (motionOff) return
     const lastY = new WeakMap<Element, number>()
     let lastAt = 0
     let recover = 0
@@ -462,14 +521,13 @@ export function PetRoot(props: PropsRuntime<'shell.overlay'>): React.ReactElemen
       if (prev === undefined || Math.abs(target.scrollTop - prev) < SCROLL_GAZE_MIN_DELTA) return
       if (now - lastAt < SCROLL_GAZE_INTERVAL_MS) return
       lastAt = now
-      const element = rootRef.current
-      if (element === null) return
       // 向下滚 = 新内容从下面来，目光向下瞟一点；向上滚反之。
-      element.style.setProperty('--pet-look-y', `${(target.scrollTop > prev ? 1.8 : -1.8).toFixed(2)}px`)
+      const { x } = lookStateRef.current
+      applyLook(x, target.scrollTop > prev ? 1.8 : -1.8)
       if (recover !== 0) window.clearTimeout(recover)
       recover = window.setTimeout(() => {
         recover = 0
-        rootRef.current?.style.setProperty('--pet-look-y', '0px')
+        applyLook(lookStateRef.current.x, 0)
       }, WANDER_RECOVER_MS)
     }
     window.addEventListener('scroll', onScroll, { capture: true, passive: true })
@@ -477,7 +535,7 @@ export function PetRoot(props: PropsRuntime<'shell.overlay'>): React.ReactElemen
       window.removeEventListener('scroll', onScroll, { capture: true })
       if (recover !== 0) window.clearTimeout(recover)
     }
-  }, [prefs.petMotion])
+  }, [applyLook, motionOff])
 
   // 状态变了就换一句台词（同一状态内不换，免得闪）。
   useEffect(() => { setStateSeq((n) => n + 1) }, [petState])
@@ -518,26 +576,32 @@ export function PetRoot(props: PropsRuntime<'shell.overlay'>): React.ReactElemen
     setMenuOpen((open) => !open)
   }, [])
 
-  /** 播放一次挤压回弹（直接写 transform，不惊动 React）。 */
+  /**
+   * 播放一次挤压回弹。
+   *
+   * 用 Web Animations API 而不是 rAF 逐帧写 transform：动画由浏览器托管，
+   * 可取消、可查询、不占主线程；而且它写在独立的挤压层上，
+   * 不会再和 CSS 的入场/转圈动画抢同一个 transform（以前 JS 写的内联
+   * transform 会被 CSS 动画直接盖掉，回弹被吞）。
+   */
   const runSquash = useCallback(() => {
-    const element = motionRef.current
+    const element = squashRef.current
     if (!element) return
+    // 关档与系统减弱动效下不该有任何形变（CSS 的 animation:none 管不到 JS 形变）。
+    if (motionOff) return
     const state = impulseRef.current
-    state.start = performance.now()
-    if (state.frame !== 0) return
-    const step = (): void => {
-      const t = (performance.now() - state.start) / SQUASH_MS
-      if (t >= 1) {
-        state.frame = 0
-        element.style.transform = ''
-        return
-      }
-      const ratio = 1 + 0.18 * Math.sin(Math.PI * t) * (1 - t)
-      element.style.transform = `scale(${(1 + 0.16 * ratio).toFixed(3)}, ${(1 - 0.18 * ratio).toFixed(3)})`
-      state.frame = requestAnimationFrame(step)
-    }
-    state.frame = requestAnimationFrame(step)
-  }, [])
+    state.animation?.cancel()
+    const animation = element.animate(
+      [
+        { transform: 'scale(1.16, 0.86)' },
+        { transform: 'scale(0.94, 1.07)', offset: 0.45 },
+        { transform: 'scale(1.03, 0.98)', offset: 0.75 },
+        { transform: 'scale(1, 1)' },
+      ],
+      { duration: SQUASH_MS, easing: 'cubic-bezier(0.2, 0.9, 0.3, 1)', fill: 'none' },
+    )
+    state.animation = animation
+  }, [motionOff])
 
   /** 连戳转圈：转完还晕一小会儿（×_×）。 */
   const startSpin = useCallback((): void => {
@@ -558,11 +622,11 @@ export function PetRoot(props: PropsRuntime<'shell.overlay'>): React.ReactElemen
     touchInteraction()
     patSeqRef.current += 1
     setPatting(true)
-    setBubbleUntil(Date.now() + PAT_MS + 200)
+    showBubbleFor(PAT_MS + 200)
     showFlash(pickKey(PAT_LINES, patSeqRef.current))
     if (prefs.petMotion !== 'off') spawnHearts()
     later(() => { setPatting(false) }, PAT_MS)
-  }, [later, prefs.petMotion, showFlash, spawnHearts, touchInteraction])
+  }, [later, prefs.petMotion, showBubbleFor, showFlash, spawnHearts, touchInteraction])
 
   /** 戳一下：挤压 + 换台词 + 冒心心；连戳（双击）升级成转圈；
       打盹中被戳则是惊醒——小跳一吓，并把这一下当成活动（真的醒了）。 */
@@ -579,17 +643,17 @@ export function PetRoot(props: PropsRuntime<'shell.overlay'>): React.ReactElemen
       lastActivityRef.current = now
       startleSeqRef.current += 1
       setStartling(true)
-      setBubbleUntil(now + POKE_MS)
+      showBubbleFor(POKE_MS)
       showFlash(pickKey(STARTLE_LINES, startleSeqRef.current))
       later(() => { setStartling(false) }, STARTLE_MS)
       return
     }
     setPokeSeq((n) => n + 1)
     setPoking(true)
-    setBubbleUntil(Date.now() + POKE_MS)
+    showBubbleFor(POKE_MS)
     runSquash()
     spawnHearts()
-  }, [later, petState, runSquash, showFlash, spawnHearts, startSpin, touchInteraction])
+  }, [later, petState, runSquash, showBubbleFor, showFlash, spawnHearts, startSpin, touchInteraction])
 
   useEffect(() => {
     if (!poking) return
@@ -638,7 +702,7 @@ export function PetRoot(props: PropsRuntime<'shell.overlay'>): React.ReactElemen
   const onPointerMove = useCallback((event: React.PointerEvent<HTMLDivElement>) => {
     const drag = dragRef.current
     const element = rootRef.current
-    const motion = motionRef.current
+    const swing = swingRef.current
     if (!drag || !element || drag.pointerId !== event.pointerId) return
     if (Math.hypot(event.clientX - drag.startX, event.clientY - drag.startY) > 4) {
       // 拖动成立：长按作废。
@@ -655,7 +719,7 @@ export function PetRoot(props: PropsRuntime<'shell.overlay'>): React.ReactElemen
     // 拖拽中直接改样式，避免每帧重渲染整棵树。
     element.style.left = `${x}px`
     element.style.top = `${y}px`
-    if (motion !== null) {
+    if (swing !== null && !motionOff) {
       // 顺着惯性歪一下：角度由水平速度算出，像被吊在指尖。
       const now = performance.now()
       const dt = Math.max(1, now - drag.lastAt)
@@ -664,14 +728,14 @@ export function PetRoot(props: PropsRuntime<'shell.overlay'>): React.ReactElemen
       drag.lastY = event.clientY
       drag.lastAt = now
       const angle = swingAngle(velocity, 14)
-      motion.style.transform = `rotate(${angle.toFixed(2)}deg) translateY(3px)`
+      swing.style.transform = `rotate(${angle.toFixed(2)}deg) translateY(3px)`
     }
-  }, [])
+  }, [motionOff])
 
   const endDrag = useCallback((event: React.PointerEvent<HTMLDivElement>) => {
     const drag = dragRef.current
     const element = rootRef.current
-    const motion = motionRef.current
+    const swing = swingRef.current
     if (pressTimerRef.current !== 0) {
       window.clearTimeout(pressTimerRef.current)
       pressTimerRef.current = 0
@@ -680,7 +744,7 @@ export function PetRoot(props: PropsRuntime<'shell.overlay'>): React.ReactElemen
     setDragging(false)
     if (!drag || !element) return
     if (element.hasPointerCapture(event.pointerId)) element.releasePointerCapture(event.pointerId)
-    if (motion !== null) motion.style.transform = ''
+    if (swing !== null) swing.style.transform = ''
     if (!drag.moved) {
       // 长按已经把这次按住消费成「摸摸」，抬起不再补一刀戳。
       if (patFiredRef.current) {
@@ -727,15 +791,14 @@ export function PetRoot(props: PropsRuntime<'shell.overlay'>): React.ReactElemen
   if (!prefs.petEnabled) return null
 
   // 台词优先级：拖拽 > 一次性反应（转圈/摸摸/踉跄/伸懒腰）> 戳 > 常驻状态。
-  const flashActive = flash !== null && Date.now() < flash.until
   const bubbleKey: RainbowKey = dragging
     ? 'petDrag'
-    : flashActive && flash !== null
-      ? flash.key
+    : flash !== null
+      ? flash
       : poking
         ? pickKey(POKE_LINES, pokeSeq)
         : pickKey(STATE_LINES[petState], stateSeq)
-  const showBubble = flashActive || hovered || Date.now() < bubbleUntil || petState === 'waiting' || petState === 'error'
+  const showBubble = flash !== null || hovered || bubbleOn || petState === 'waiting' || petState === 'error'
 
   return (
     <div
@@ -797,17 +860,21 @@ export function PetRoot(props: PropsRuntime<'shell.overlay'>): React.ReactElemen
         }}
       >
         <span className={styles.motion} ref={motionRef}>
-          <span className={styles.body}>
-            <span className={styles.sheen} />
-            <span className={styles.rim} />
-            <span className={styles.face}>
-              <span className={styles.eyeLeft}><span className={styles.pupil} /><span className={styles.glint} /><span className={styles.glintDot} /><span className={styles.dizzyX} aria-hidden="true" /></span>
-              <span className={styles.eyeRight}><span className={styles.pupil} /><span className={styles.glint} /><span className={styles.glintDot} /><span className={styles.dizzyX} aria-hidden="true" /></span>
-              <span className={styles.blushLeft} />
-              <span className={styles.blushRight} />
-              <span className={styles.mouth}><span className={styles.tongue} /></span>
+          <span className={styles.swing} ref={swingRef}>
+            <span className={styles.squash} ref={squashRef}>
+              <span className={styles.body}>
+                <span className={styles.sheen} />
+                <span className={styles.rim} />
+                <span className={styles.face}>
+                  <span className={styles.eyeLeft}><span className={styles.pupil} ref={lookRefCallbacks[0]} /><span className={styles.glint} ref={lookRefCallbacks[1]} /><span className={styles.glintDot} ref={lookRefCallbacks[2]} /><span className={styles.dizzyX} aria-hidden="true" /></span>
+                  <span className={styles.eyeRight}><span className={styles.pupil} ref={lookRefCallbacks[3]} /><span className={styles.glint} ref={lookRefCallbacks[4]} /><span className={styles.glintDot} ref={lookRefCallbacks[5]} /><span className={styles.dizzyX} aria-hidden="true" /></span>
+                  <span className={styles.blushLeft} />
+                  <span className={styles.blushRight} />
+                  <span className={styles.mouth}><span className={styles.tongue} /></span>
+                </span>
+                <span className={styles.sweat} aria-hidden="true" />
+              </span>
             </span>
-            <span className={styles.sweat} aria-hidden="true" />
           </span>
         </span>
         <span className={styles.shock} key={pokeSeq} aria-hidden="true" />
