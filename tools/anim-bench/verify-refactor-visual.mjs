@@ -5,6 +5,11 @@
  * 回答一个问题：把表情几何从布局属性（width/height/top/margin）换成
  * scale/translate 之后，**看起来还是不是同一只小虹**？
  *
+ * 注意：0.5 之后五个角色按五月天参考图重做了形象与表情（见
+ * docs/character-design.md），所以这里的差异是**预期内**的——
+ * 本工具现在用于量化「形象改了多少」，不再是「有没有意外改动」的闸门。
+ * 真正的逐帧回归用 verify-pet-visual.mjs（与基准图逐像素比）。
+ *
  * 做法：用同一套标记，分别套「冻结的改造前样式」与「当前样式」，
  * 渲染成两张图后逐像素比对。连续动画（呼吸/点头/跳跃/眨眼）会因截图
  * 相位不同而误判成差异，所以比对前先把动画整体移除（animation: none），
@@ -139,7 +144,8 @@ console.log(`差异图 → ${join(OUT, 'pet-refactor-diff.png')}`)
 const ok = r.ratio <= MAX_RATIO
 console.log(ok
   ? `✅ 在阈值内（${(MAX_RATIO * 100).toFixed(1)}%）：改造后与改造前视觉一致`
-  : `❌ 超出阈值（${(MAX_RATIO * 100).toFixed(1)}%）：视觉有可见变化，需要人工看差异图`)
+  : `⚠️ 差异 ${(r.ratio * 100).toFixed(3)}%（阈值 ${(MAX_RATIO * 100).toFixed(1)}%）：`
+    + '形象按参考图重做后差异是预期内的——逐帧回归请看 verify-pet-visual.mjs')
 
 ws.close(); chrome.kill(); server.close()
 process.exit(ok ? 0 : 1)

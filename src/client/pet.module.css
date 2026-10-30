@@ -173,21 +173,22 @@
   filter: brightness(1.045);
 }
 
-/* 五个角色的球色：`data-ball` 选择，径向渐变拉体积（红球是上面的默认）。 */
+/* 五个角色的球色：色相对齐参考图实测值（粉 #e76ca3 / 黄 #f1cc3d /
+   红 #da361d / 绿 #1ca939 / 蓝 #2ba6e1），仍保留径向渐变的体积感。 */
 .pet[data-ball='yellow'] .body::before {
-  background: radial-gradient(circle at 33% 27%, #f0d264 0%, #e3bd3a 52%, #c7a52e 100%);
+  background: radial-gradient(circle at 33% 27%, #f7d75a 0%, #f1cc3d 52%, #d9b32c 100%);
 }
 
 .pet[data-ball='pink'] .body::before {
-  background: radial-gradient(circle at 33% 27%, #f0a3c3 0%, #e288ae 52%, #c96a92 100%);
+  background: radial-gradient(circle at 33% 27%, #ef7fb4 0%, #e76ca3 52%, #cf5a90 100%);
 }
 
 .pet[data-ball='blue'] .body::before {
-  background: radial-gradient(circle at 33% 27%, #5db1e0 0%, #3f97d0 52%, #2f7cb2 100%);
+  background: radial-gradient(circle at 33% 27%, #45b4ea 0%, #2ba6e1 52%, #1c8ac4 100%);
 }
 
 .pet[data-ball='green'] .body::before {
-  background: radial-gradient(circle at 33% 27%, #4db86c 0%, #2f9e50 52%, #237a3c 100%);
+  background: radial-gradient(circle at 33% 27%, #2fc44a 0%, #1ca939 52%, #128c2c 100%);
 }
 
 /* 球面反光：让圆球有体积感。
@@ -240,15 +241,17 @@
   pointer-events: none;
 }
 
-/* 眼睛：白眼白 + 彩色圆瞳（吧唧球的脸），瞳孔跟着指针挪。 */
+/* 眼睛：白眼白 + 彩色圆瞳（吧唧球的脸），瞳孔跟着指针挪。
+   几何由各角色的变量给出（--eye-* / --iris-*），状态切换只改 scale / translate，
+   不动布局盒——所以换表情永远不触发重排。 */
 .eyeLeft,
 .eyeRight {
   position: absolute;
-  top: 37%;
-  width: 18%;
-  height: 22%;
-  border-radius: 50%;
-  background: radial-gradient(circle at 50% 32%, #ffffff 0%, rgba(255, 255, 255, 0.97) 62%, rgba(226, 228, 220, 0.95) 100%);
+  top: var(--eye-top, 37%);
+  width: var(--eye-w, 18%);
+  height: var(--eye-h, 22%);
+  border-radius: var(--eye-radius, 50%);
+  background: var(--eye-bg, radial-gradient(circle at 50% 32%, #ffffff 0%, rgba(255, 255, 255, 0.97) 62%, rgba(226, 228, 220, 0.95) 100%));
   box-shadow: inset 0 1.5px 2px rgba(15, 17, 21, 0.12);
   overflow: hidden;
   transform-origin: center;
@@ -266,23 +269,38 @@
 }
 
 .eyeLeft {
-  left: 25%;
+  left: var(--eye-left, 25%);
+}
+
+/* 上眼睑：黄球的招牌——半垂着眼，虹膜只露下半。
+   眼皮用球面本色画（盖住虹膜的上半），高度由 --lid-h 控制。 */
+.eyeLeft::after,
+.eyeRight::after {
+  content: '';
+  position: absolute;
+  left: 0;
+  top: 0;
+  width: 100%;
+  height: var(--lid-h, 0%);
+  background: var(--lid-color, transparent);
+  border-radius: 50% 50% 40% 40% / 60% 60% 30% 30%;
+  pointer-events: none;
 }
 
 .eyeRight {
-  right: 25%;
+  right: var(--eye-right, 25%);
 }
 
 .pupil {
   position: absolute;
   left: 50%;
   top: 50%;
-  width: 66%;
-  height: 66%;
-  margin: -33% 0 0 -33%;
+  width: var(--iris-w, 66%);
+  height: var(--iris-h, 66%);
+  margin: var(--iris-mx, -33%) 0 0 var(--iris-my, -33%);
   border-radius: 50%;
-  /* 红球的绿瞳：吧唧球默认脸的招牌配色。状态换脸时由状态段覆盖。 */
-  background: radial-gradient(circle at 42% 36%, #55bd6e 0%, #2f9e50 62%);
+  /* 虹膜：每个角色一套（色相、大小都不同）。 */
+  background: var(--iris, radial-gradient(circle at 42% 36%, #55bd6e 0%, #2f9e50 62%));
   /* 初值；实际位移由 JS 写内联 transform（直接写元素，失效范围最小）。 */
   transform: translate(0, 0);
   /* 丝滑的关键：视线永远在「滑」，不在「跳」。曲线要长而软，
@@ -293,49 +311,15 @@
     translate var(--pet-dur-base) var(--pet-ease-elastic);
 }
 
-.glint {
-  position: absolute;
-  left: 20%;
-  top: 14%;
-  width: 32%;
-  height: 32%;
-  border-radius: 50%;
-  background: rgba(255, 255, 255, 0.92);
-  transform: translate(0, 0);
-  transition: transform 0.32s cubic-bezier(0.25, 0.75, 0.3, 1);
-}
-
-/* 第二高光：右下小星点，随瞳孔一起挪。 */
+/* 高光点：参考图里五只球的眼睛都是平涂（纯白眼 + 纯色虹膜），没有高光——
+   留着它反而让脸「不像那只球」。默认关掉。 */
+.glint,
 .glintDot {
-  position: absolute;
-  right: 16%;
-  bottom: 12%;
-  width: 15%;
-  height: 15%;
-  border-radius: 50%;
-  background: rgba(255, 255, 255, 0.85);
-  transform: translate(0, 0);
-  transition: transform 0.32s cubic-bezier(0.25, 0.75, 0.3, 1);
+  display: none;
 }
 
-/* 各角色的招牌瞳色（参考图）：红球绿瞳（默认）、黄球红瞳、粉球蓝瞳、
-   蓝球深瞳、绿球橙瞳。放在状态段之前——出错橙瞳等状态瞳色靠源码顺序
-   压过这里的默认。 */
-.pet[data-ball='yellow'] .pupil {
-  background: radial-gradient(circle at 42% 36%, #e06a5b 0%, #cf4436 62%);
-}
-
-.pet[data-ball='pink'] .pupil {
-  background: radial-gradient(circle at 42% 36%, #5db1e0 0%, #3f97d0 62%);
-}
-
-.pet[data-ball='blue'] .pupil {
-  background: radial-gradient(circle at 42% 36%, #4a5058 0%, light-dark(#23272c, #0d0f12) 62%);
-}
-
-.pet[data-ball='green'] .pupil {
-  background: radial-gradient(circle at 42% 36%, #f6a04c 0%, #e07f2e 62%);
-}
+/* 各角色的招牌瞳色在角色段落里给（--iris）：红球绿瞳、黄球红瞳、粉球蓝瞳、
+   蓝球深瞳、绿球橙瞳——与参考图实测一致。 */
 
 /* 腮红：radial 晕染而非实心块——像皮下透出来的红，边缘必须消失于无形。 */
 .blush {
@@ -361,14 +345,15 @@
    红球默认脸的傲娇细节。状态换脸时整个换形状（见状态段）。 */
 .mouth {
   position: absolute;
-  top: 62%;
+  top: var(--mouth-top, 62%);
   left: 50%;
-  width: 13%;
-  height: 4%;
-  margin-left: -6.5%;
-  border-radius: 3px;
-  background: light-dark(#20242a, #101214);
-  transform: rotate(-7deg);
+  width: var(--mouth-w, 13%);
+  height: var(--mouth-h, 4%);
+  margin-left: var(--mouth-left, -6.5%);
+  border-radius: var(--mouth-radius, 3px);
+  border-bottom: var(--mouth-border, none);
+  background: var(--mouth-bg, light-dark(#20242a, #101214));
+  transform: rotate(var(--mouth-rot, -7deg));
   transition:
     transform var(--pet-dur-base) var(--pet-ease-standard),
     border-radius var(--pet-dur-base) var(--pet-ease-standard),
@@ -377,17 +362,21 @@
     background-color var(--pet-dur-base) var(--pet-ease-standard);
 }
 
-.pet[data-state='resting'] .mouth::before {
+/* 嘴的附件：每个角色用它做自己的形状（粉=第二个波浪、黄=嘴角黑块、
+   红=上翘的小勾、绿=锯齿的折角、蓝=v 嘴的第二笔）。默认不画。 */
+.mouth::before {
   content: '';
   position: absolute;
-  left: -16%;
-  top: 28%;
-  width: 42%;
-  height: 3px;
-  border-radius: 3px;
-  background: inherit;
-  transform: rotate(48deg);
-  transform-origin: right center;
+  display: var(--mouth-accent, none);
+  left: var(--mouth-accent-x, -16%);
+  top: var(--mouth-accent-y, 28%);
+  width: var(--mouth-accent-w, 42%);
+  height: var(--mouth-accent-h, 3px);
+  border-radius: var(--mouth-accent-radius, 3px);
+  border-bottom: var(--mouth-accent-border, none);
+  background: var(--mouth-accent-bg, inherit);
+  transform: var(--mouth-accent-transform, rotate(48deg));
+  transform-origin: var(--mouth-accent-origin, right center);
 }
 
 /* 舌头：庆祝大笑时从嘴底露出一小片。 */
@@ -671,162 +660,23 @@
   background: var(--dsw-alias-interactive-bg-hover, light-dark(#2631480f, #ffffff14));
 }
 
-/* ——— 状态：表情 + 动效 ——— */
-
-/* 待机：缓慢呼吸 + 轻微摇摆。 */
-.pet[data-state='resting'] .body {
-  animation: pet-rest 5.6s ease-in-out infinite;
-}
-
+/* ——— 状态：共享效果（光环、汗滴、星火、Zzz、腮红、舌头）———
+   这些是「状态信号」，与角色无关；脸与动作则由下面的角色段落各自表达。 */
 .pet[data-state='resting'] .aura {
   --pet-aura: rgba(217, 73, 61, 0.18);
-}
-
-/* 干活：小幅度持续点头 + 微呼吸——专注是「持续的律动」，
-   不是大幅弹跳；大头点两下像在敲桌子，小幅度才像思考。 */
-.pet[data-state='working'] .body {
-  animation: pet-work 2.1s ease-in-out infinite;
-}
-
-/* 镜片是真的透明：透出当前球色，任何角色戴上都不违和。
-   尺寸用 scale 表达（21/18）；镜圈的描边宽度按同一个比例回调，
-   渲染出来仍是 2px。 */
-.pet[data-state='working'] .eyeLeft,
-.pet[data-state='working'] .eyeRight {
-  scale: 1.1334 1;
-  translate: 6.68% 0;
-  border: 2px solid #d9c74a;
-  border-radius: 30%;
-  background: transparent;
-  animation: none;
-}
-
-/* 镜片里的白眼珠：比镜圈小一圈，瞳孔在其上。 */
-/* 镜片跟着眼睛一起放大，所以布局尺寸要按同一个比例（1/1.1667）回调，
-   渲染出来才和改动前一致。 */
-.pet[data-state='working'] .eyeLeft::before,
-.pet[data-state='working'] .eyeRight::before {
-  content: '';
-  position: absolute;
-  left: 50%;
-  top: 50%;
-  width: 63.8%;
-  height: 70%;
-  margin: -40.8% 0 0 -31.9%;
-  border-radius: 50%;
-  /* 半径用百分比写死：默认的 farthest-corner 会随盒宽变化，
-     缩放后白核比改动前小 1px。94.8%/80.2% 等价于原来的 circle 半径。 */
-  background: radial-gradient(ellipse 94.8% 80.2% at 50% 32%, #ffffff 0%, #f2f0e8 100%);
-}
-
-/* 镜架的中梁：两片镜圈之间的那一条，金丝眼镜的辨识度全靠它。 */
-.pet[data-state='working'] .face::before {
-  content: '';
-  position: absolute;
-  top: 47%;
-  left: 50%;
-  width: 8%;
-  height: 2.5%;
-  margin-left: -4%;
-  border-radius: 3px;
-  background: #d9c74a;
-}
-
-/* 镜框里的瞳孔：尺寸用 scale 表达（36/66、40/66），
-   位置微调 0.44px（-3.64%）与改动前对齐。 */
-.pet[data-state='working'] .pupil {
-  scale: 0.5613 0.6062;
-  translate: 0 -7.7%;
-  background: radial-gradient(circle at 42% 36%, #4a5058 0%, light-dark(#23272c, #0d0f12) 62%);
-}
-
-/* 高光是眼珠的，不是镜片的：深瞳自带光泽，镜片高光收掉。 */
-.pet[data-state='working'] .glint,
-.pet[data-state='working'] .glintDot {
-  display: none;
 }
 
 .pet[data-state='working'] .aura {
   --pet-aura: rgba(63, 151, 208, 0.26);
 }
 
-.pet[data-state='working'] .mouth {
-  scale: 0.7692 0.875;
-  /* 圆角随非等比缩放会走形：X/Y 分别按各自的比例补偿。 */
-  border-radius: 2.6px 2.29px;
-  transform: rotate(0deg);
-}
-
-/* 等你：轻快的弹跳 + 惬意眯眼 + 张嘴笑——跃跃欲试但不吵闹。 */
-.pet[data-state='waiting'] .body {
-  animation: pet-wait 1.3s ease-in-out infinite;
-}
-
+/* 等你：光环转琥珀，脉冲快一点——那是「轮到你」的信号。 */
 .pet[data-state='waiting'] .aura {
   --pet-aura: rgba(245, 158, 11, 0.32);
   animation-duration: 1.6s;
 }
 
-/* 眯眼：红弧线「︶」，惬意且有点得意；弧线是硬件脸，不参与眨眼。 */
-/* 眯眼弧线：高度 9/22、宽度 17/18；弧线本身要 3.5px 厚，
-   描边宽度按同一比例放大（3.5/0.4091），渲染出来仍是 3.5px。
-   弧线的落点靠 translate 回调（-11.36%），与改动前逐像素对齐。 */
-.pet[data-state='waiting'] .eyeLeft,
-.pet[data-state='waiting'] .eyeRight {
-  scale: 0.9439 0.4141;
-  translate: -2.79% -15.88%;
-  background: transparent;
-  box-shadow: none;
-  border-radius: 0 0 50% 50% / 0 0 100% 100%;
-  border-bottom: 7px solid #cf4436;
-  animation: none;
-}
-
-.pet[data-state='waiting'] .pupil,
-.pet[data-state='waiting'] .glint,
-.pet[data-state='waiting'] .glintDot {
-  display: none;
-}
-
-/* 张嘴笑：上排小白牙 + 深色口腔——笑着等你。 */
-/* 张嘴笑：上排小白牙 + 深色口腔——笑着等你。
-   尺寸 20/13 × 15/4；圆角的 px 部分按横向比例回调（5/1.5385），
-   百分比部分随盒同比缩放，渲染结果与改动前一致。 */
-.pet[data-state='waiting'] .mouth {
-  scale: 1.5385 3.75;
-  translate: 0 137.5%;
-  border-radius: 3.25px 1.33px 3.25px 1.33px 60% 70% 60% 70%;
-  background: linear-gradient(180deg, #ffffff 0%, #ffffff 32%, #40271c 32%, #2a1810 100%);
-  transform: rotate(0deg);
-}
-
-/* 眯眼弧线按球色取对比色：黄球用参考图的红弧，红球用深栗色，
-   粉/蓝/绿球用白弧（粉球的白弧正是参考图粉球的眼）。 */
-.pet[data-ball='red'][data-state='waiting'] .eyeLeft,
-.pet[data-ball='red'][data-state='waiting'] .eyeRight {
-  border-bottom-color: #7e211a;
-}
-
-.pet[data-ball='pink'][data-state='waiting'] .eyeLeft,
-.pet[data-ball='pink'][data-state='waiting'] .eyeRight,
-.pet[data-ball='blue'][data-state='waiting'] .eyeLeft,
-.pet[data-ball='blue'][data-state='waiting'] .eyeRight,
-.pet[data-ball='green'][data-state='waiting'] .eyeLeft,
-.pet[data-ball='green'][data-state='waiting'] .eyeRight {
-  border-bottom-color: #ffffff;
-}
-
-/* 庆祝：起跳 + 星火 + 大笑。
-   影子同步跳（次要动作）：身体升到最高点时影子最小最淡——
-   没有影子联动的跳跃像悬浮，有联动才有重量。 */
-.pet[data-state='celebrating'] .body {
-  animation: pet-cheer 0.85s cubic-bezier(0.3, 0.9, 0.4, 1) 4;
-}
-
-.pet[data-state='celebrating'] .shadow {
-  animation: pet-shadow-jump 0.85s cubic-bezier(0.3, 0.9, 0.4, 1) 4;
-}
-
+/* 庆祝：星火 + 腮红 + 舌头。 */
 .pet[data-state='celebrating'] .aura {
   --pet-aura: rgba(255, 193, 7, 0.42);
   animation-duration: 1.1s;
@@ -836,93 +686,18 @@
   display: block;
 }
 
-.pet[data-state='celebrating'] .eyeLeft,
-.pet[data-state='celebrating'] .eyeRight {
-  animation: pet-happy 0.7s ease-in-out infinite;
-}
-
-/* 庆祝时眯眼笑：把瞳孔藏掉，只留一道弯——留着瞳孔会变成一条黑杠。 */
-.pet[data-state='celebrating'] .pupil,
-.pet[data-state='celebrating'] .glint,
-.pet[data-state='celebrating'] .glintDot {
-  display: none;
-}
-
 .pet[data-state='celebrating'] .blush {
   opacity: 0.95;
   transform: scale(1.15);
 }
 
-.pet[data-state='celebrating'] .mouth {
-  scale: 2 4.5;
-  border-radius: 0 0 60% 60%;
-  background: light-dark(#1b1f24, #0b0d10);
-  transform: rotate(0deg);
-}
-
 .pet[data-state='celebrating'] .tongue {
   display: block;
-  /* 舌头是嘴的子元素，跟着嘴一起缩放——布局尺寸要按同一比例回调。 */
-  width: 30.7%;
-  height: 35%;
 }
 
-.pet[data-state='celebrating'] .sparkle:nth-child(1) {
-  top: 6%;
-  left: 8%;
-  animation: pet-sparkle 1s ease-in-out infinite;
-}
-
-.pet[data-state='celebrating'] .sparkle:nth-child(2) {
-  top: 0%;
-  right: 14%;
-  animation: pet-sparkle 1s ease-in-out 0.2s infinite;
-}
-
-.pet[data-state='celebrating'] .sparkle:nth-child(3) {
-  top: 24%;
-  right: 0%;
-  animation: pet-sparkle 1s ease-in-out 0.4s infinite;
-}
-
-/* 出错：抖动 + 汗滴——瞪圆眼睛往上瞟，一脸「这是什么」的懵。 */
-.pet[data-state='error'] .body {
-  animation: pet-shake 0.62s ease-out 1;
-}
-
+/* 出错：汗滴 + 腮红收掉。 */
 .pet[data-state='error'] .aura {
   --pet-aura: rgba(240, 90, 60, 0.3);
-}
-
-.pet[data-state='error'] .eyeLeft,
-.pet[data-state='error'] .eyeRight {
-  scale: 1.0555 1.045;
-  translate: 2.79% 2.28%;
-  animation: none;
-}
-
-/* 橙色小瞳孔缩在眼白上部——往上瞟的一脸茫然。
-   尺寸 44/66；往上瞟的那一下用 translate 表达（-4.55%，按缩放比例回调）。 */
-.pet[data-state='error'] .pupil {
-  scale: 0.6663 0.6658;
-  translate: 0 -18.5%;
-  background: radial-gradient(circle at 42% 36%, #f6a04c 0%, #e07f2e 62%);
-}
-
-.pet[data-state='error'] .glint,
-.pet[data-state='error'] .glintDot {
-  display: none;
-}
-
-.pet[data-state='error'] .blush {
-  opacity: 0.35;
-}
-
-/* 懵住的嘴：一条拉平的直线，微微下坠。 */
-.pet[data-state='error'] .mouth {
-  scale: 1.4615 0.875;
-  border-radius: 2.05px 3.43px;
-  transform: rotate(3deg);
 }
 
 .pet[data-state='error'] .sweat {
@@ -930,43 +705,731 @@
   animation: pet-sweat 1.6s ease-in-out infinite;
 }
 
-/* 打盹：闭眼 + Zzz 上浮，影子随呼吸同步起伏。
-   不压暗不掉饱和——睡着也保持本色，只靠表情和节奏表达「困」。 */
-.pet[data-state='sleeping'] .body {
-  animation: pet-sleep 5.4s ease-in-out infinite;
+.pet[data-state='error'] .blush {
+  opacity: 0.35;
 }
 
-.pet[data-state='sleeping'] .shadow {
-  animation: pet-shadow-sleep 5.4s ease-in-out infinite;
-}
-
+/* 打盹：Zzz 上浮。 */
 .pet[data-state='sleeping'] .aura {
   --pet-aura: rgba(99, 102, 241, 0.2);
   animation-duration: 6s;
 }
 
-.pet[data-state='sleeping'] .eyeLeft,
-.pet[data-state='sleeping'] .eyeRight {
-  scale: 1 0.1817;
-  animation: none;
-  background: light-dark(#1b1f24, #0b0d10);
-}
-
-.pet[data-state='sleeping'] .pupil,
-.pet[data-state='sleeping'] .glint,
-.pet[data-state='sleeping'] .glintDot {
-  display: none;
-}
-
-.pet[data-state='sleeping'] .mouth {
-  scale: 0.6923 0.75;
-  border-radius: 4.33px 4px;
-  transform: rotate(0deg);
-}
-
 .pet[data-state='sleeping'] .zzz {
   display: block;
   animation: pet-zzz 3.2s ease-in-out infinite;
+}
+
+/* ————————————————————————————————————————————————
+   五个角色：五套独立主题。
+
+   参考图里这五只球的脸**结构就不同**（大竖眼 / 半垂眼皮 / 圆绿眼 /
+   小斗鸡眼 / 黄框眼镜），嘴也各是一副形状（双波浪 / 张开白嘴 /
+   横杠带勾 / 斜锯齿 / v 形）。所以这里没有「通用脸」——每个角色自带一套
+   基准脸（--eye-* / --iris-* / --mouth-* 变量）、一套状态演绎、一套动作脾气。
+
+   几何只在基准态设定（布局属性，不参与过渡）；状态之间一律用 scale /
+   translate 换形，绝不触发重排。
+   ———————————————————————————————————————————————— */
+
+/* 蓝球的黄框眼镜：框画在眼睛的描边上——描边不会被 overflow 裁剪，
+   而眼镜必须探出眼白之外。鼻梁画在 .face::before 上（两只镜片之间那一条）。 */
+.pet[data-ball='blue'] .eyeLeft,
+.pet[data-ball='blue'] .eyeRight {
+  border: var(--glasses-width, 3px) solid var(--glasses-color, #eccd3f);
+  border-radius: var(--glasses-radius, 26%);
+}
+
+.pet[data-ball='blue'] .face::before {
+  content: '';
+  position: absolute;
+  top: 33%;
+  left: 50%;
+  width: 9%;
+  height: 4%;
+  margin-left: -4.5%;
+  border-radius: 2px;
+  background: var(--glasses-color, #eccd3f);
+}
+
+/* ——— 粉球：憨、呆萌、眼睛大 ——— */
+.pet[data-ball='pink'] {
+  /* 大竖椭圆白眼，蓝虹膜几乎填满 */
+  --eye-w: 18%;
+  --eye-h: 29%;
+  --eye-top: 15%;
+  --eye-left: 31%;
+  --eye-right: 29%;
+  --iris-w: 62%;
+  --iris-h: 46%;
+  --iris-mx: -31%;
+  --iris-my: -33%;
+  --iris: radial-gradient(circle at 44% 36%, #1aaff4 0%, #029ee8 62%);
+  /* 双波浪嘴：本体是第一个下弧，::before 是第二个 */
+  --mouth-w: 15%;
+  --mouth-h: 7%;
+  --mouth-top: 59%;
+  --mouth-left: -5%;
+  --mouth-bg: transparent;
+  --mouth-radius: 0 0 90% 90% / 0 0 100% 100%;
+  --mouth-border: 2px solid #1b1b1b;
+  --mouth-accent: block;
+  --mouth-accent-x: 82%;
+  --mouth-accent-y: 0;
+  --mouth-accent-w: 100%;
+  --mouth-accent-h: 100%;
+  --mouth-accent-radius: 0 0 90% 90% / 0 0 100% 100%;
+  --mouth-accent-bg: transparent;
+  --mouth-accent-border: 2px solid #1b1b1b;
+  --mouth-accent-transform: none;
+  --mouth-accent-origin: center;
+}
+
+/* 粉·待机：上下弹跳，幅度最大——呆萌 ball 的待机就是在蹦。 */
+.pet[data-ball='pink'][data-state='resting'] .body {
+  animation: pet-idle-pink 1.45s cubic-bezier(0.34, 1.3, 0.64, 1) infinite;
+}
+
+/* 粉·干活：眼睛微收、目光下移——认真在看。 */
+.pet[data-ball='pink'][data-state='working'] .eyeLeft,
+.pet[data-ball='pink'][data-state='working'] .eyeRight {
+  scale: 0.96 0.9;
+  translate: 0 4%;
+}
+
+.pet[data-ball='pink'][data-state='working'] .pupil {
+  scale: 0.92 1;
+  translate: 0 16%;
+}
+
+.pet[data-ball='pink'][data-state='working'] .mouth {
+  scale: 0.86 0.7;
+  translate: 0 12%;
+}
+
+.pet[data-ball='pink'][data-state='working'] .body {
+  animation: pet-active-pink 1.1s ease-in-out infinite;
+}
+
+/* 粉·等你：眼睛睁到最大、目光上抬——在等一个回应。 */
+.pet[data-ball='pink'][data-state='waiting'] .eyeLeft,
+.pet[data-ball='pink'][data-state='waiting'] .eyeRight {
+  scale: 1.14 1.12;
+  translate: 0 -3%;
+}
+
+.pet[data-ball='pink'][data-state='waiting'] .pupil {
+  scale: 1.06 1.06;
+  translate: 0 -10%;
+}
+
+.pet[data-ball='pink'][data-state='waiting'] .mouth {
+  scale: 0.72 0.62;
+  translate: 0 8%;
+}
+
+.pet[data-ball='pink'][data-state='waiting'] .body {
+  animation: pet-idle-pink 0.9s ease-in-out infinite;
+}
+
+/* 粉·庆祝：眼弯成月牙、嘴咧到最大。 */
+.pet[data-ball='pink'][data-state='celebrating'] .eyeLeft,
+.pet[data-ball='pink'][data-state='celebrating'] .eyeRight {
+  animation: pet-happy 0.7s ease-in-out infinite;
+}
+
+.pet[data-ball='pink'][data-state='celebrating'] .pupil {
+  display: none;
+}
+
+.pet[data-ball='pink'][data-state='celebrating'] .mouth {
+  scale: 1.5 1.7;
+  translate: 0 -6%;
+}
+
+.pet[data-ball='pink'][data-state='celebrating'] .body {
+  animation: pet-cheer-pink 0.72s cubic-bezier(0.3, 0.9, 0.4, 1) 4;
+}
+
+/* 粉·出错：眼一大一小、嘴歪斜——懵。 */
+.pet[data-ball='pink'][data-state='error'] .eyeLeft {
+  scale: 1.1 0.94;
+  translate: 0 3%;
+}
+
+.pet[data-ball='pink'][data-state='error'] .eyeRight {
+  scale: 0.92 1.08;
+  translate: 0 -2%;
+}
+
+.pet[data-ball='pink'][data-state='error'] .pupil {
+  scale: 0.78 0.78;
+  translate: 0 14%;
+}
+
+.pet[data-ball='pink'][data-state='error'] .mouth {
+  scale: 0.92 0.92;
+  rotate: -8deg;
+}
+
+.pet[data-ball='pink'][data-state='error'] .body {
+  animation: pet-error-pink 0.52s ease-out 1;
+}
+
+/* 粉·打盹：眼闭成弧线、嘴缩成小点。 */
+.pet[data-ball='pink'][data-state='sleeping'] .eyeLeft,
+.pet[data-ball='pink'][data-state='sleeping'] .eyeRight {
+  scale: 1 0.16;
+  translate: 0 30%;
+}
+
+.pet[data-ball='pink'][data-state='sleeping'] .pupil {
+  display: none;
+}
+
+.pet[data-ball='pink'][data-state='sleeping'] .mouth {
+  scale: 0.62 0.5;
+  translate: 0 16%;
+}
+
+.pet[data-ball='pink'][data-state='sleeping'] .body {
+  animation: pet-sleep-pink 2.6s ease-in-out infinite;
+}
+
+/* ——— 黄球：慵懒、装酷、眼皮永远半垂 ——— */
+.pet[data-ball='yellow'] {
+  --eye-w: 17%;
+  --eye-h: 21%;
+  --eye-top: 30%;
+  --eye-left: 28%;
+  --eye-right: 28%;
+  --iris-w: 62%;
+  --iris-h: 62%;
+  --iris-mx: -31%;
+  --iris-my: -33%;
+  --iris: radial-gradient(circle at 42% 36%, #e8393f 0%, #cf2b32 62%);
+  /* 上眼睑：球色的一块，把虹膜上半盖住——参考图里黄球就是这副半垂眼 */
+  --lid-h: 30%;
+  --lid-color: #f1cc3d;
+  /* 张开的白嘴，右下角一小块黑（嘴角） */
+  --mouth-w: 27%;
+  --mouth-h: 13%;
+  --mouth-top: 59%;
+  --mouth-left: -9%;
+  --mouth-bg: #ffffff;
+  --mouth-radius: 80% 80% 30% 30% / 100% 100% 26% 26%;
+  --mouth-rot: 0deg;
+  --mouth-accent: block;
+  --mouth-accent-x: 62%;
+  --mouth-accent-y: 66%;
+  --mouth-accent-w: 26%;
+  --mouth-accent-h: 26%;
+  --mouth-accent-radius: 50%;
+  --mouth-accent-bg: #1b1b1b;
+  --mouth-accent-transform: none;
+  --mouth-accent-origin: center;
+}
+
+/* 黄·待机：慢悠悠的钟摆——连呼吸都懒得做。 */
+.pet[data-ball='yellow'][data-state='resting'] .body {
+  animation: pet-idle-yellow 3.2s ease-in-out infinite;
+}
+
+/* 黄·干活：眼皮再压低——懒得睁眼干活。 */
+.pet[data-ball='yellow'][data-state='working'] .eyeLeft,
+.pet[data-ball='yellow'][data-state='working'] .eyeRight {
+  scale: 1 0.96;
+}
+
+.pet[data-ball='yellow'][data-state='working'] .eyeLeft::after,
+.pet[data-ball='yellow'][data-state='working'] .eyeRight::after {
+  height: 56%;
+}
+
+.pet[data-ball='yellow'][data-state='working'] .mouth {
+  scale: 0.92 0.9;
+}
+
+.pet[data-ball='yellow'][data-state='working'] .body {
+  animation: pet-active-yellow 2.4s ease-in-out infinite;
+}
+
+/* 黄·等你：眼皮抬一半、嘴角上挑——「嗯？」 */
+.pet[data-ball='yellow'][data-state='waiting'] .eyeLeft,
+.pet[data-ball='yellow'][data-state='waiting'] .eyeRight {
+  scale: 1.06 1.06;
+}
+
+.pet[data-ball='yellow'][data-state='waiting'] .eyeLeft::after,
+.pet[data-ball='yellow'][data-state='waiting'] .eyeRight::after {
+  height: 26%;
+}
+
+.pet[data-ball='yellow'][data-state='waiting'] .mouth {
+  scale: 1.06 1.04;
+  translate: 0 -6%;
+}
+
+.pet[data-ball='yellow'][data-state='waiting'] .body {
+  animation: pet-idle-yellow 2.2s ease-in-out infinite;
+}
+
+/* 黄·庆祝：眼皮不动、嘴张得更大——懒洋洋地乐。 */
+.pet[data-ball='yellow'][data-state='celebrating'] .eyeLeft,
+.pet[data-ball='yellow'][data-state='celebrating'] .eyeRight {
+  scale: 1 0.94;
+}
+
+.pet[data-ball='yellow'][data-state='celebrating'] .pupil {
+  scale: 1 0.7;
+}
+
+.pet[data-ball='yellow'][data-state='celebrating'] .mouth {
+  scale: 1.35 1.5;
+}
+
+.pet[data-ball='yellow'][data-state='celebrating'] .body {
+  animation: pet-cheer-yellow 1.1s ease-in-out 3;
+}
+
+/* 黄·出错：眼皮耷到最低、嘴缩成一小块——「…行吧」。 */
+.pet[data-ball='yellow'][data-state='error'] .eyeLeft,
+.pet[data-ball='yellow'][data-state='error'] .eyeRight {
+  scale: 1 0.9;
+}
+
+.pet[data-ball='yellow'][data-state='error'] .eyeLeft::after,
+.pet[data-ball='yellow'][data-state='error'] .eyeRight::after {
+  height: 72%;
+}
+
+.pet[data-ball='yellow'][data-state='error'] .mouth {
+  scale: 0.56 0.5;
+  translate: 0 6%;
+}
+
+.pet[data-ball='yellow'][data-state='error'] .body {
+  animation: pet-error-yellow 0.9s ease-out 1;
+}
+
+/* 黄·打盹：眼皮全闭、嘴变成一条细缝。 */
+.pet[data-ball='yellow'][data-state='sleeping'] .eyeLeft,
+.pet[data-ball='yellow'][data-state='sleeping'] .eyeRight {
+  scale: 1 0.3;
+}
+
+.pet[data-ball='yellow'][data-state='sleeping'] .eyeLeft::after,
+.pet[data-ball='yellow'][data-state='sleeping'] .eyeRight::after {
+  height: 100%;
+}
+
+.pet[data-ball='yellow'][data-state='sleeping'] .pupil {
+  display: none;
+}
+
+.pet[data-ball='yellow'][data-state='sleeping'] .mouth {
+  scale: 1.3 0.3;
+  translate: 0 4%;
+}
+
+.pet[data-ball='yellow'][data-state='sleeping'] .body {
+  animation: pet-sleep-yellow 4.2s ease-in-out infinite;
+}
+
+/* ——— 红球：傲娇、冷面、嘴是一条带勾的横杠 ——— */
+.pet[data-ball='red'] {
+  --eye-w: 18%;
+  --eye-h: 22%;
+  --eye-top: 25%;
+  --eye-left: 28%;
+  --eye-right: 28%;
+  --iris-w: 56%;
+  --iris-h: 56%;
+  --iris-mx: -28%;
+  --iris-my: -28%;
+  --iris: radial-gradient(circle at 42% 36%, #2fbe5a 0%, #12a03f 62%);
+  --mouth-w: 21%;
+  --mouth-h: 5%;
+  --mouth-top: 64%;
+  --mouth-left: -9%;
+  --mouth-bg: #1b1b1b;
+  --mouth-radius: 2px;
+  --mouth-rot: 0deg;
+  /* 左端那个向上的小勾 */
+  --mouth-accent: block;
+  --mouth-accent-x: 0%;
+  --mouth-accent-y: -150%;
+  --mouth-accent-w: 24%;
+  --mouth-accent-h: 170%;
+  --mouth-accent-radius: 2px;
+  --mouth-accent-bg: #1b1b1b;
+  --mouth-accent-transform: rotate(-42deg);
+  --mouth-accent-origin: right bottom;
+}
+
+/* 红·待机：短促点头，像在表态。 */
+.pet[data-ball='red'][data-state='resting'] .body {
+  animation: pet-idle-red 1.85s ease-in-out infinite;
+}
+
+/* 红·干活：眼睛微眯、嘴杠紧——专注。 */
+.pet[data-ball='red'][data-state='working'] .eyeLeft,
+.pet[data-ball='red'][data-state='working'] .eyeRight {
+  scale: 0.94 0.94;
+}
+
+.pet[data-ball='red'][data-state='working'] .pupil {
+  scale: 1 0.96;
+  translate: 0 8%;
+}
+
+.pet[data-ball='red'][data-state='working'] .mouth {
+  scale: 0.86 0.8;
+  translate: 0 6%;
+}
+
+.pet[data-ball='red'][data-state='working'] .body {
+  animation: pet-active-red 1.35s ease-in-out infinite;
+}
+
+/* 红·等你：眼睛睁大、嘴撇向一边——不情愿。 */
+.pet[data-ball='red'][data-state='waiting'] .eyeLeft,
+.pet[data-ball='red'][data-state='waiting'] .eyeRight {
+  scale: 1.16 1.16;
+}
+
+.pet[data-ball='red'][data-state='waiting'] .pupil {
+  scale: 0.84 0.84;
+  translate: 0 -6%;
+}
+
+.pet[data-ball='red'][data-state='waiting'] .mouth {
+  scale: 0.92 0.9;
+  rotate: 7deg;
+  translate: 0 -2%;
+}
+
+.pet[data-ball='red'][data-state='waiting'] .body {
+  animation: pet-idle-red 1.5s ease-in-out infinite;
+}
+
+/* 红·庆祝：眼微弯、嘴横杠一挑——得意。 */
+.pet[data-ball='red'][data-state='celebrating'] .eyeLeft,
+.pet[data-ball='red'][data-state='celebrating'] .eyeRight {
+  scale: 0.98 0.76;
+}
+
+.pet[data-ball='red'][data-state='celebrating'] .pupil {
+  scale: 1 0.7;
+}
+
+.pet[data-ball='red'][data-state='celebrating'] .mouth {
+  scale: 1.12 1.1;
+  rotate: -5deg;
+}
+
+.pet[data-ball='red'][data-state='celebrating'] .body {
+  animation: pet-cheer-red 0.8s cubic-bezier(0.3, 0.9, 0.4, 1) 4;
+}
+
+/* 红·出错：眼睛瞪圆、嘴横杠一沉——不高兴。 */
+.pet[data-ball='red'][data-state='error'] .eyeLeft,
+.pet[data-ball='red'][data-state='error'] .eyeRight {
+  scale: 1.12 1.12;
+}
+
+.pet[data-ball='red'][data-state='error'] .pupil {
+  scale: 0.9 0.9;
+  translate: 0 -8%;
+}
+
+.pet[data-ball='red'][data-state='error'] .mouth {
+  scale: 1 0.9;
+  translate: 0 10%;
+}
+
+.pet[data-ball='red'][data-state='error'] .body {
+  animation: pet-error-red 0.46s ease-out 1;
+}
+
+/* 红·打盹：眼闭成横线、嘴放松。 */
+.pet[data-ball='red'][data-state='sleeping'] .eyeLeft,
+.pet[data-ball='red'][data-state='sleeping'] .eyeRight {
+  scale: 1 0.14;
+  translate: 0 24%;
+}
+
+.pet[data-ball='red'][data-state='sleeping'] .pupil {
+  display: none;
+}
+
+.pet[data-ball='red'][data-state='sleeping'] .mouth {
+  scale: 0.82 0.7;
+  translate: 0 8%;
+}
+
+.pet[data-ball='red'][data-state='sleeping'] .body {
+  animation: pet-sleep-red 3s ease-in-out infinite;
+}
+
+/* ——— 绿球：暴躁、别扭、眼睛小且斗在一起 ——— */
+.pet[data-ball='green'] {
+  --eye-w: 15%;
+  --eye-h: 16%;
+  --eye-top: 30%;
+  --eye-left: 36%;
+  --eye-right: 36%;
+  --iris-w: 52%;
+  --iris-h: 52%;
+  --iris-mx: -26%;
+  --iris-my: -26%;
+  --iris: radial-gradient(circle at 42% 36%, #ffb63d 0%, #f5a623 62%);
+  /* 斜向锯齿嘴：本体是斜杠，::before 是中间那个折角 */
+  --mouth-w: 34%;
+  --mouth-h: 4%;
+  --mouth-top: 62%;
+  --mouth-left: -16%;
+  --mouth-bg: #1b1b1b;
+  --mouth-radius: 2px;
+  --mouth-rot: -14deg;
+  --mouth-accent: block;
+  --mouth-accent-x: 42%;
+  --mouth-accent-y: -160%;
+  --mouth-accent-w: 26%;
+  --mouth-accent-h: 230%;
+  --mouth-accent-radius: 2px;
+  --mouth-accent-bg: #1b1b1b;
+  --mouth-accent-transform: rotate(30deg);
+  --mouth-accent-origin: left bottom;
+}
+
+/* 绿·待机：不耐烦的轻颤。 */
+.pet[data-ball='green'][data-state='resting'] .body {
+  animation: pet-idle-green 1.15s linear infinite;
+}
+
+/* 绿·干活：眼睛眯成缝、嘴更斜——憋着。 */
+.pet[data-ball='green'][data-state='working'] .eyeLeft,
+.pet[data-ball='green'][data-state='working'] .eyeRight {
+  scale: 1 0.62;
+}
+
+.pet[data-ball='green'][data-state='working'] .pupil {
+  scale: 0.82 0.82;
+  translate: 0 12%;
+}
+
+.pet[data-ball='green'][data-state='working'] .mouth {
+  scale: 1 0.82;
+  translate: 0 8%;
+}
+
+.pet[data-ball='green'][data-state='working'] .body {
+  animation: pet-active-green 0.95s ease-in-out infinite;
+}
+
+/* 绿·等你：两眼的瞳珠往中间挤——怀疑地看着你。 */
+.pet[data-ball='green'][data-state='waiting'] .eyeLeft .pupil {
+  translate: 26% 0;
+}
+
+.pet[data-ball='green'][data-state='waiting'] .eyeRight .pupil {
+  translate: -26% 0;
+}
+
+.pet[data-ball='green'][data-state='waiting'] .mouth {
+  scale: 0.94 0.9;
+  rotate: -20deg;
+}
+
+.pet[data-ball='green'][data-state='waiting'] .body {
+  animation: pet-idle-green 0.8s linear infinite;
+}
+
+/* 绿·庆祝：眼挤成缝、嘴的锯齿上翘——暴躁地欢呼。 */
+.pet[data-ball='green'][data-state='celebrating'] .eyeLeft,
+.pet[data-ball='green'][data-state='celebrating'] .eyeRight {
+  scale: 1 0.42;
+}
+
+.pet[data-ball='green'][data-state='celebrating'] .pupil {
+  scale: 1 0.6;
+}
+
+.pet[data-ball='green'][data-state='celebrating'] .mouth {
+  scale: 1.12 1.24;
+  rotate: -22deg;
+}
+
+.pet[data-ball='green'][data-state='celebrating'] .body {
+  animation: pet-cheer-green 0.62s cubic-bezier(0.3, 0.9, 0.4, 1) 4;
+}
+
+/* 绿·出错：眼瞪圆、锯齿折成锐角——炸毛。 */
+.pet[data-ball='green'][data-state='error'] .eyeLeft,
+.pet[data-ball='green'][data-state='error'] .eyeRight {
+  scale: 1.28 1.28;
+}
+
+.pet[data-ball='green'][data-state='error'] .pupil {
+  scale: 0.76 0.76;
+  translate: 0 -10%;
+}
+
+.pet[data-ball='green'][data-state='error'] .mouth {
+  scale: 1.06 1.18;
+  rotate: -28deg;
+}
+
+.pet[data-ball='green'][data-state='error'] .body {
+  animation: pet-error-green 0.42s ease-out 1;
+}
+
+/* 绿·打盹：眼闭上、锯齿变平缓。 */
+.pet[data-ball='green'][data-state='sleeping'] .eyeLeft,
+.pet[data-ball='green'][data-state='sleeping'] .eyeRight {
+  scale: 1 0.18;
+  translate: 0 18%;
+}
+
+.pet[data-ball='green'][data-state='sleeping'] .pupil {
+  display: none;
+}
+
+.pet[data-ball='green'][data-state='sleeping'] .mouth {
+  scale: 0.88 0.8;
+  rotate: -6deg;
+}
+
+.pet[data-ball='green'][data-state='sleeping'] .body {
+  animation: pet-sleep-green 2.2s ease-in-out infinite;
+}
+
+/* ——— 蓝球：理性、认真、永远戴着黄框眼镜 ——— */
+.pet[data-ball='blue'] {
+  --eye-w: 30%;
+  --eye-h: 25%;
+  --eye-top: 22%;
+  --eye-left: 23%;
+  --eye-right: 23%;
+  --eye-radius: 26%;
+  --iris-w: 30%;
+  --iris-h: 30%;
+  --iris-mx: -15%;
+  --iris-my: -15%;
+  --iris: #16181c;
+  /* 眼镜：框画在眼睛的 ::before 上，鼻子中间的梁画在 .face::before 上 */
+  --glasses-color: #eccd3f;
+  --glasses-width: 3px;
+  --glasses-radius: 26%;
+  /* v 形嘴：本体是左斜笔，::before 是右斜笔 */
+  --mouth-w: 9%;
+  --mouth-h: 4%;
+  --mouth-top: 58%;
+  --mouth-left: -8%;
+  --mouth-bg: #16181c;
+  --mouth-radius: 2px;
+  --mouth-rot: 32deg;
+  --mouth-accent: block;
+  --mouth-accent-x: 96%;
+  --mouth-accent-y: -30%;
+  --mouth-accent-w: 100%;
+  --mouth-accent-h: 110%;
+  --mouth-accent-radius: 2px;
+  --mouth-accent-bg: #16181c;
+  --mouth-accent-transform: rotate(-58deg);
+  --mouth-accent-origin: left center;
+}
+
+/* 蓝·待机：匀速呼吸，绝对规律——像一台仪器的指示灯。 */
+.pet[data-ball='blue'][data-state='resting'] .body {
+  animation: pet-idle-blue 2.6s linear infinite;
+}
+
+/* 蓝·干活：目光正视、嘴拉成一条直线——判定中。 */
+.pet[data-ball='blue'][data-state='working'] .pupil {
+  scale: 0.86 0.86;
+  translate: 0 6%;
+}
+
+.pet[data-ball='blue'][data-state='working'] .mouth {
+  scale: 1.1 0.7;
+  rotate: 0deg;
+}
+
+.pet[data-ball='blue'][data-state='working'] .body {
+  animation: pet-active-blue 2s linear infinite;
+}
+
+/* 蓝·等你：眼镜抬一点、v 嘴变直——等判定结果。 */
+.pet[data-ball='blue'][data-state='waiting'] .eyeLeft,
+.pet[data-ball='blue'][data-state='waiting'] .eyeRight {
+  translate: 0 -4%;
+}
+
+.pet[data-ball='blue'][data-state='waiting'] .pupil {
+  scale: 0.94 0.94;
+}
+
+.pet[data-ball='blue'][data-state='waiting'] .mouth {
+  scale: 1.2 0.6;
+  rotate: 0deg;
+}
+
+.pet[data-ball='blue'][data-state='waiting'] .body {
+  animation: pet-idle-blue 1.9s linear infinite;
+}
+
+/* 蓝·庆祝：眼镜不晃、v 嘴上翘——克制地点一下头。 */
+.pet[data-ball='blue'][data-state='celebrating'] .pupil {
+  scale: 0.8 0.8;
+}
+
+.pet[data-ball='blue'][data-state='celebrating'] .mouth {
+  scale: 1.15 1.2;
+  rotate: -18deg;
+}
+
+.pet[data-ball='blue'][data-state='celebrating'] .body {
+  animation: pet-cheer-blue 0.9s ease-out 3;
+}
+
+/* 蓝·出错：眼镜歪一点、v 嘴翻成人字——无语。 */
+.pet[data-ball='blue'][data-state='error'] .eyeLeft,
+.pet[data-ball='blue'][data-state='error'] .eyeRight {
+  rotate: 4deg;
+}
+
+.pet[data-ball='blue'][data-state='error'] .pupil {
+  scale: 0.82 0.82;
+}
+
+.pet[data-ball='blue'][data-state='error'] .mouth {
+  scale: 1.1 1;
+  rotate: 178deg;
+}
+
+.pet[data-ball='blue'][data-state='error'] .body {
+  animation: pet-error-blue 0.7s ease-out 1;
+}
+
+/* 蓝·打盹：眼镜后闭眼、v 嘴放松。 */
+.pet[data-ball='blue'][data-state='sleeping'] .eyeLeft,
+.pet[data-ball='blue'][data-state='sleeping'] .eyeRight {
+  scale: 1 0.24;
+}
+
+.pet[data-ball='blue'][data-state='sleeping'] .pupil {
+  display: none;
+}
+
+.pet[data-ball='blue'][data-state='sleeping'] .mouth {
+  scale: 0.82 0.8;
+  rotate: 8deg;
+}
+
+.pet[data-ball='blue'][data-state='sleeping'] .body {
+  animation: pet-sleep-blue 3.6s ease-in-out infinite;
 }
 
 /* 拖拽中：悬空、微垂，动画暂停避免打架。 */
@@ -1002,7 +1465,7 @@
   translate: none;
 }
 
-/* 被拎起来的「o」嘴不带撇嘴的小钩。 */
+/* 被拎起来的「o」嘴不带任何角色的嘴部附件。 */
 .pet[data-dragging='true'] .mouth::before {
   display: none;
 }
@@ -1065,7 +1528,9 @@
   transform: rotate(-45deg);
 }
 
-/* 摸摸：果冻鼓起，眯眼笑 + 腮红拉满——被rua到的满足感。 */
+/* 摸摸：每个角色眯眼的方式不同——粉球眯得最狠（被摸到最爽），
+   黄球几乎不眯（它懒得配合），绿球挤成一条缝，红球只是微微一弯，
+   蓝球规规矩矩地眯一下。 */
 .pet[data-pat='true'] .body {
   animation: pet-pat 0.9s ease-out 1;
 }
@@ -1090,6 +1555,36 @@
   width: 14%;
   height: 6%;
   margin-left: -7%;
+}
+
+/* 粉球：眯得最开、带回弹——被摸到最开心。 */
+.pet[data-ball='pink'][data-pat='true'] .eyeLeft,
+.pet[data-ball='pink'][data-pat='true'] .eyeRight {
+  animation: pet-happy-pink 0.5s cubic-bezier(0.34, 1.4, 0.64, 1) infinite;
+}
+
+/* 黄球：几乎不眯——它懒得配合。 */
+.pet[data-ball='yellow'][data-pat='true'] .eyeLeft,
+.pet[data-ball='yellow'][data-pat='true'] .eyeRight {
+  animation: pet-happy-yellow 0.6s ease-in-out infinite;
+}
+
+/* 红球：只是微微弯一下。 */
+.pet[data-ball='red'][data-pat='true'] .eyeLeft,
+.pet[data-ball='red'][data-pat='true'] .eyeRight {
+  animation: pet-happy-red 0.55s ease-in-out infinite;
+}
+
+/* 绿球：挤成一条缝。 */
+.pet[data-ball='green'][data-pat='true'] .eyeLeft,
+.pet[data-ball='green'][data-pat='true'] .eyeRight {
+  animation: pet-happy-green 0.45s ease-in-out infinite;
+}
+
+/* 蓝球：规规矩矩地眯一下。 */
+.pet[data-ball='blue'][data-pat='true'] .eyeLeft,
+.pet[data-ball='blue'][data-pat='true'] .eyeRight {
+  animation: pet-happy-blue 0.5s ease-in-out infinite;
 }
 
 /* 踉跄：窗口大小变了，地板在晃——重心左右找平衡。 */
@@ -1230,6 +1725,161 @@
 
 /* ——— 关键帧 ——— */
 
+/* ——— 五个角色各自的动作关键帧 ———
+   五套完全不同的动作语言：粉是弹跳、黄是钟摆、红是点头、绿是轻颤、蓝是匀速呼吸。
+   不是同一套关键帧换参数——每一套的运动轨迹本身就不同。 */
+
+/* 粉球：弹跳（幅度大、带回弹） */
+@keyframes pet-idle-pink {
+  0%, 100% { transform: translateY(0) scale(1, 1); }
+  45% { transform: translateY(-4px) scale(1.03, 0.97); }
+}
+
+@keyframes pet-active-pink {
+  0%, 100% { transform: translateY(0) rotate(0deg); }
+  50% { transform: translateY(-2px) rotate(1.2deg); }
+}
+
+@keyframes pet-cheer-pink {
+  0% { transform: translateY(0) scale(1, 1); }
+  20% { transform: translateY(3px) scale(1.07, 0.93); }
+  50% { transform: translateY(-14px) scale(0.95, 1.06); }
+  78% { transform: translateY(0) scale(1.04, 0.96); }
+  100% { transform: translateY(0) scale(1, 1); }
+}
+
+@keyframes pet-error-pink {
+  0%, 100% { transform: rotate(0deg); }
+  30% { transform: rotate(-5deg) translateY(-1px); }
+  65% { transform: rotate(4deg); }
+}
+
+@keyframes pet-sleep-pink {
+  0%, 100% { transform: translateY(0) scale(1, 1); }
+  50% { transform: translateY(1.5px) scale(1.02, 0.98); }
+}
+
+/* 黄球：钟摆（慢、幅度大、几乎不呼吸） */
+@keyframes pet-idle-yellow {
+  0%, 100% { transform: rotate(-2.6deg) translateY(1px); }
+  50% { transform: rotate(2.6deg) translateY(-1px); }
+}
+
+@keyframes pet-active-yellow {
+  0%, 100% { transform: translateY(0) rotate(-1deg); }
+  50% { transform: translateY(-1px) rotate(1deg); }
+}
+
+@keyframes pet-cheer-yellow {
+  0%, 100% { transform: rotate(0deg) scale(1, 1); }
+  30% { transform: rotate(-4deg) scale(1.02, 0.98); }
+  70% { transform: rotate(4deg) scale(0.99, 1.01); }
+}
+
+@keyframes pet-error-yellow {
+  0%, 100% { transform: translateY(0) scaleY(1); }
+  40% { transform: translateY(2.5px) scaleY(0.96); }
+}
+
+@keyframes pet-sleep-yellow {
+  0%, 100% { transform: translateY(1.5px) scale(1.01, 0.99); }
+  50% { transform: translateY(0) scale(1, 1); }
+}
+
+/* 红球：点头（短促、干脆） */
+@keyframes pet-idle-red {
+  0%, 100% { transform: translateY(0) rotate(0deg); }
+  30% { transform: translateY(-2px) rotate(-1.2deg); }
+  62% { transform: translateY(0) rotate(1.2deg); }
+}
+
+@keyframes pet-active-red {
+  0%, 100% { transform: translateY(0) rotate(-0.9deg); }
+  50% { transform: translateY(-1px) rotate(0.9deg); }
+}
+
+@keyframes pet-cheer-red {
+  0% { transform: translateY(0) scale(1, 1); }
+  25% { transform: translateY(2px) scale(1.05, 0.95); }
+  55% { transform: translateY(-8px) scale(0.98, 1.03); }
+  80% { transform: translateY(0) scale(1, 1); }
+  100% { transform: translateY(0) scale(1, 1); }
+}
+
+@keyframes pet-error-red {
+  0%, 100% { transform: translateX(0) rotate(0deg); }
+  25% { transform: translateX(-3px) rotate(-2deg); }
+  55% { transform: translateX(3px) rotate(2deg); }
+  80% { transform: translateX(-1px) rotate(-1deg); }
+}
+
+@keyframes pet-sleep-red {
+  0%, 100% { transform: translateY(0) scaleY(1); }
+  50% { transform: translateY(1px) scaleY(1.012); }
+}
+
+/* 绿球：轻颤（快、不规则、带躁动） */
+@keyframes pet-idle-green {
+  0%, 100% { transform: translate(0, 0) rotate(0deg); }
+  20% { transform: translate(0.6px, -0.4px) rotate(0.7deg); }
+  45% { transform: translate(-0.5px, 0.3px) rotate(-0.6deg); }
+  70% { transform: translate(0.4px, 0.5px) rotate(0.4deg); }
+}
+
+@keyframes pet-active-green {
+  0%, 100% { transform: translateY(0) rotate(0deg); }
+  50% { transform: translateY(-1.5px) rotate(0.9deg); }
+}
+
+@keyframes pet-cheer-green {
+  0% { transform: translateY(0) scale(1, 1); }
+  20% { transform: translateY(4px) scale(1.09, 0.91); }
+  50% { transform: translateY(-11px) scale(0.94, 1.07) rotate(2.5deg); }
+  80% { transform: translateY(0) scale(1.03, 0.97); }
+  100% { transform: translateY(0) scale(1, 1); }
+}
+
+@keyframes pet-error-green {
+  0%, 100% { transform: translate(0, 0) rotate(0deg); }
+  15% { transform: translate(-2px, 0) rotate(-3deg); }
+  35% { transform: translate(2px, -1px) rotate(3deg); }
+  55% { transform: translate(-2px, 1px) rotate(-2deg); }
+  78% { transform: translate(1px, 0) rotate(1deg); }
+}
+
+@keyframes pet-sleep-green {
+  0%, 100% { transform: translateY(1px) rotate(-1deg); }
+  50% { transform: translateY(0) rotate(1deg); }
+}
+
+/* 蓝球：匀速呼吸（绝对规律，像仪器） */
+@keyframes pet-idle-blue {
+  0%, 100% { transform: scale(1, 1); }
+  50% { transform: scale(1.015, 0.985); }
+}
+
+@keyframes pet-active-blue {
+  0%, 100% { transform: translateY(0); }
+  50% { transform: translateY(-0.6px); }
+}
+
+@keyframes pet-cheer-blue {
+  0% { transform: translateY(0); }
+  30% { transform: translateY(-3px); }
+  72% { transform: translateY(0); }
+  100% { transform: translateY(0); }
+}
+
+@keyframes pet-error-blue {
+  0%, 100% { transform: rotate(0deg); }
+  45% { transform: rotate(3deg) translateX(1px); }
+}
+
+@keyframes pet-sleep-blue {
+  0%, 100% { transform: scale(1, 1); }
+  50% { transform: scale(1.02, 0.98); }
+}
+
 @keyframes pet-rest {
   0%, 100% { transform: translateY(0) rotate(0deg) scaleY(1); }
   30% { transform: translateY(-2px) rotate(-1deg) scaleY(1.02); }
@@ -1281,6 +1931,32 @@
 @keyframes pet-happy {
   0%, 100% { transform: scaleY(0.42); }
   50% { transform: scaleY(0.26); }
+}
+
+/* 各角色被摸时的眯眼：幅度与节奏各不相同。 */
+@keyframes pet-happy-pink {
+  0%, 100% { transform: scaleY(0.28); }
+  50% { transform: scaleY(0.1); }
+}
+
+@keyframes pet-happy-yellow {
+  0%, 100% { transform: scaleY(0.78); }
+  50% { transform: scaleY(0.7); }
+}
+
+@keyframes pet-happy-red {
+  0%, 100% { transform: scaleY(0.58); }
+  50% { transform: scaleY(0.44); }
+}
+
+@keyframes pet-happy-green {
+  0%, 100% { transform: scaleY(0.2); }
+  50% { transform: scaleY(0.08); }
+}
+
+@keyframes pet-happy-blue {
+  0%, 100% { transform: scaleY(0.5); }
+  50% { transform: scaleY(0.38); }
 }
 
 @keyframes pet-aura {
