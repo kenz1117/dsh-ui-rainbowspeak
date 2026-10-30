@@ -21,17 +21,8 @@
 
 ---
 
-<div align="center">
-  <img src="assets/01-rainbowspeak-default.png" alt="dsh-ui-rainbowspeak — 输入框经典彩虹边框" width="80%">
-</div>
+<img width="1271" height="811" alt="image" src="https://github.com/user-attachments/assets/16fbd528-3d17-47de-aa87-3e0f768cfdf8" />
 
-<div align="center">
-  <img src="assets/pet-hero.png" alt="小虹五角色默认脸：红红 / 黄黄 / 粉粉 / 蓝蓝 / 绿绿——按参考图逐像素复刻" width="72%">
-</div>
-
-<div align="center">
-  <img src="assets/07-pet-states.png" alt="小虹 — 五角色 × 六状态全矩阵：待机 / 干活 / 等你 / 庆祝 / 出错 / 打盹，每个角色一套专属演绎" width="80%">
-</div>
 
 ## ✨ 为什么选它
 
