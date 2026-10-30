@@ -35,8 +35,13 @@ import { PREFS_EVENT, loadPrefs, savePrefs, PET_BASE_SIZE, type PetBall, type Ra
 import type { RainbowKey } from './locales.ts'
 import type { PetScope } from './pet-state.ts'
 
-/** 瞳孔最大偏移（px）：眼睛挪一点，不挪出眼眶。 */
-const LOOK_MAX = 5.5
+/** 瞳孔最大偏移 = 球宽的 5%：随宠物尺寸缩放——固定 px 在小球上会把
+ *  瞳珠推出白眼珠（实测 0.7× 档时直接顶到镜片上，像眼睛错位）。 */
+const LOOK_MAX_FRACTION = 0.05
+
+/** 各角色的视线增益：眼白越小的角色增益越小——蓝球眼白只占镜片一角，
+ *  位移一大就滑出白眼珠，看起来像斗鸡眼错位。 */
+const LOOK_GAIN: Record<PetBall, number> = { blue: 0.3, green: 0.5, pink: 1, red: 1, yellow: 1 }
 
 /** 指针静止多久后，瞳孔开始自己闲逛扫视（ms）。 */
 const LOOK_IDLE_MS = 3000
@@ -83,8 +88,8 @@ const LAND_MS = 460
 /** 哼小曲时长（ms），与 CSS pet-hum 周期一致。 */
 const HUM_MS = 1800
 
-/** 挤压回弹的时长（ms）。 */
-const SQUASH_MS = 420
+/** 挤压回弹的时长（ms，含果冻余振的衰减尾）。 */
+const SQUASH_MS = 560
 
 /** 戳击台词的停留时长（ms）。 */
 const POKE_MS = 2600
@@ -96,13 +101,14 @@ const SIZE_OPTIONS: readonly { readonly value: number; readonly key: RainbowKey 
   { value: 1.4, key: 'petMenuSizeLarge' },
 ]
 
-/** 菜单里的五个可选角色（吧唧球）：球色即身份，color 是菜单小色点。 */
+/** 菜单里的五个可选角色（吧唧球）：球色即身份，color 是菜单小色点。
+ *  色值 = 参考图平涂实测（scan-faces-precise.mjs）。 */
 const PET_BALLS: readonly { readonly value: PetBall; readonly key: RainbowKey; readonly color: string }[] = [
-  { value: 'red', key: 'petBallRed', color: '#d9493d' },
-  { value: 'yellow', key: 'petBallYellow', color: '#e3bd3a' },
-  { value: 'pink', key: 'petBallPink', color: '#e288ae' },
-  { value: 'blue', key: 'petBallBlue', color: '#3f97d0' },
-  { value: 'green', key: 'petBallGreen', color: '#2f9e50' },
+  { value: 'red', key: 'petBallRed', color: '#da361d' },
+  { value: 'yellow', key: 'petBallYellow', color: '#f0cd3f' },
+  { value: 'pink', key: 'petBallPink', color: '#e76ca3' },
+  { value: 'blue', key: 'petBallBlue', color: '#2ba6e1' },
+  { value: 'green', key: 'petBallGreen', color: '#1ca939' },
 ]
 
 /** 菜单宽度（px）：贴边修正按它算。 */
@@ -174,6 +180,9 @@ export function PetRoot(props: PropsRuntime<'shell.overlay'>): React.ReactElemen
   const menuRef = useRef<HTMLDivElement>(null)
   const dragRef = useRef<DragState | null>(null)
   const lastActivityRef = useRef<number>(Date.now())
+  /** 心心/音符的存活计数与爆发的节流戳：连戳时收敛数量，别糊一脸。 */
+  const aliveHeartsRef = useRef(0)
+  const lastBurstAtRef = useRef(0)
   const heartIdRef = useRef(0)
   const impulseRef = useRef<{ animation: Animation | null }>({ animation: null })
   const timersRef = useRef<number[]>([])
@@ -260,6 +269,13 @@ export function PetRoot(props: PropsRuntime<'shell.overlay'>): React.ReactElemen
     const t = `translate(${x.toFixed(2)}px, ${y.toFixed(2)}px)`
     for (const el of lookRefs.current) {
       if (el !== null) el.style.transform = t
+    }
+    // 视线方向带一点身体倾斜（≤1.2°）：像被自己的目光牵着微微侧身——
+    // 「灵动」的一大来源（Kimi 果冻球的 head-tilt 同款思路，幅度收敛）。
+    // 拖拽中 .swing 归拖拽摆动管，这里不抢。
+    const swing = swingRef.current
+    if (swing !== null && dragRef.current === null) {
+      swing.style.transform = `rotate(${(x * 0.22).toFixed(3)}deg)`
     }
   }, [])
 
@@ -373,12 +389,13 @@ export function PetRoot(props: PropsRuntime<'shell.overlay'>): React.ReactElemen
       const element = rootRef.current
       if (!element || pending === null) return
       const rect = element.getBoundingClientRect()
+      const gain = LOOK_GAIN[element.dataset.ball as PetBall] ?? 1
       const look = lookVector(
         pending.x - (rect.left + rect.width / 2),
         pending.y - (rect.top + rect.height / 2),
-        LOOK_MAX,
+        rect.width * LOOK_MAX_FRACTION,
       )
-      writeLook(look.x, look.y)
+      writeLook(look.x * gain, look.y * gain)
     }
     const wander = (): void => {
       wanderTimer = 0
@@ -419,18 +436,30 @@ export function PetRoot(props: PropsRuntime<'shell.overlay'>): React.ReactElemen
     [statuses, currentSessionId, prefs.petScope],
   )
 
-  /** 炸开几颗小粒子（默认心心；哼小曲时传音符）。 */
+  /**
+   * 炸开几颗小粒子（默认心心；哼小曲时传音符）。
+   *
+   * 从**头顶**冒出、往上飘走（以前从脸中间出生，3-5 颗一起糊在脸上，
+   * 实测反馈很不自然）。三重收敛：每次 2-3 颗、爆发间隔 ≥220ms、
+   * 同场存活 ≤4 颗——连戳也不会堆积。
+   */
   const spawnHearts = useCallback((char: string = '♥') => {
-    const count = 3 + Math.floor(Math.random() * 3)
+    const now = performance.now()
+    if (now - lastBurstAtRef.current < 220 || aliveHeartsRef.current >= 4) return
+    lastBurstAtRef.current = now
+    const count = Math.min(2 + Math.floor(Math.random() * 2), 4 - aliveHeartsRef.current)
+    if (count <= 0) return
+    aliveHeartsRef.current += count
     const items: Heart[] = Array.from({ length: count }, () => ({
       id: heartIdRef.current++,
-      dx: (Math.random() - 0.5) * 58,
-      dy: -12 - Math.random() * 28,
-      delay: Math.random() * 170,
+      dx: (Math.random() - 0.5) * 40,
+      dy: -36 - Math.random() * 14,
+      delay: Math.random() * 120,
       char,
     }))
     setHearts((current) => [...current, ...items])
     window.setTimeout(() => {
+      aliveHeartsRef.current -= items.length
       setHearts((current) => current.filter((heart) => !items.some((item) => item.id === heart.id)))
     }, 1500)
   }, [])
@@ -583,6 +612,10 @@ export function PetRoot(props: PropsRuntime<'shell.overlay'>): React.ReactElemen
    * 可取消、可查询、不占主线程；而且它写在独立的挤压层上，
    * 不会再和 CSS 的入场/转圈动画抢同一个 transform（以前 JS 写的内联
    * transform 会被 CSS 动画直接盖掉，回弹被吞）。
+   *
+   * 曲线是「果冻余振」：主弹之后带两级衰减的小回摆（各级面积分≈1，
+   * 体积守恒），像软球落桌后 quiver 一下才停——借鉴 Kimi 果冻球的
+   * squash/spread 手感，只加余振不改主弹。
    */
   const runSquash = useCallback(() => {
     const element = squashRef.current
@@ -594,8 +627,10 @@ export function PetRoot(props: PropsRuntime<'shell.overlay'>): React.ReactElemen
     const animation = element.animate(
       [
         { transform: 'scale(1.16, 0.86)' },
-        { transform: 'scale(0.94, 1.07)', offset: 0.45 },
-        { transform: 'scale(1.03, 0.98)', offset: 0.75 },
+        { transform: 'scale(0.95, 1.06)', offset: 0.38 },
+        { transform: 'scale(1.03, 0.975)', offset: 0.58 },
+        { transform: 'scale(0.988, 1.01)', offset: 0.74 },
+        { transform: 'scale(1.008, 0.995)', offset: 0.87 },
         { transform: 'scale(1, 1)' },
       ],
       { duration: SQUASH_MS, easing: 'cubic-bezier(0.2, 0.9, 0.3, 1)', fill: 'none' },

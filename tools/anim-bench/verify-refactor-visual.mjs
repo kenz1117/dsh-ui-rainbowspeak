@@ -52,9 +52,9 @@ const previewScript = await readFile(join(repoRoot, 'scripts/preview-pet.mjs'), 
 await writeFile(
   join(OUT, 'preview-pet-ref.mjs'),
   previewScript
-    .replace("const cssPath = join(repoRoot, 'src/client/pet.module.css')", `const cssPath = ${JSON.stringify(REF_CSS)}`)
+    .replace("?? join(repoRoot, 'src/client/pet.module.css')", `?? ${JSON.stringify(REF_CSS)}`)
     .replace("const outDir = join(repoRoot, 'preview')", `const outDir = ${JSON.stringify(OUT)}`)
-    .replace("const outPath = join(outDir, 'pet-states.html')", `const outPath = join(outDir, 'pet-states-ref.html')`),
+    .replace("?? join(outDir, 'pet-states.html')", `?? join(outDir, 'pet-states-ref.html')`),
 )
 await new Promise((resolve, reject) => {
   const child = spawn(process.execPath, [join(OUT, 'preview-pet-ref.mjs')], { cwd: repoRoot, stdio: 'ignore' })

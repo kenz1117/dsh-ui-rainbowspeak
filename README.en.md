@@ -2,7 +2,7 @@
 
 # dsh-ui-rainbowspeak
 
-<p align="center"><b>RainbowSpeak</b> (虹语) — a flowing rainbow border for the chat composer, plus <b>Prism</b>, a ba-ji-ball companion that lives in the window: five candy balls to pick from (red / yellow / pink / blue / green), it watches your pointer, waits when you must confirm, and only celebrates when a turn really finished.</p>
+<p align="center"><b>RainbowSpeak</b> (虹语) — a flowing rainbow border for the chat composer, plus <b>Prism</b> (小虹), a ba-ji-ball companion that lives in the window: five candy balls to pick from (red / yellow / pink / blue / green), replicated pixel-by-pixel from the reference art, watching your pointer, waiting when you must confirm, and only celebrating when a turn really finished.</p>
 
 <p align="center">
   <a href="https://github.com/kenz1117/dsh-ui-rainbowspeak/stargazers"><img alt="GitHub stars" src="https://img.shields.io/github/stars/kenz1117/dsh-ui-rainbowspeak?logo=github"></a>
@@ -26,90 +26,101 @@
 </div>
 
 <div align="center">
-  <img src="assets/07-pet-states.png" alt="Prism — top: six moods (resting, working, waiting, celebrating, error, napping); bottom: five playable characters (Red, Yellow, Pink, Blue, Green)" width="80%">
+  <img src="assets/pet-hero.png" alt="The five default faces: Hong-Hong / Huang-Huang / Fen-Fen / Lan-Lan / Lyu-Lyv — pixel-replicated from the reference art" width="72%">
 </div>
 
 <div align="center">
-  <img src="assets/pet-demo.gif" alt="Prism in motion: a tour through all six moods with speech bubbles, a spin with ×_× eyes, and a pat with candy hearts" width="80%">
+  <img src="assets/07-pet-states.png" alt="Five characters × six states: resting / working / waiting / celebrating / error / sleeping, each with its own take" width="80%">
 </div>
 
-## ✨ Why this one
+## ✨ Why
 
 ### Pure decoration, zero intrusion
 
-No slots taken over, no host patches, no tools registered, no system-prompt injections. The rainbow ring is pure browser-side decoration: a `conic-gradient` ring masked down to the card edge, carried by a spinning layer so the flow costs the compositor instead of the main thread.
+No slots taken over, no host patches, no tools registered, no system prompts injected. The rainbow ring is pure browser-side decoration: a `conic-gradient` circle masked down to the card edge, carried by a **rotating layer** — the gradient paints once, then the compositor spins it; the main thread never repaints per frame.
 
-The pet keeps the same promise: the only host-side addition is a **read-only** stream of turn boundaries (session identity, turn sequence, end reason) that carries **no chat content, no history, and no approval details**; the browser side only adds one floating entry to `shell.overlay` and changes nothing else in the host.
+The pet obeys the same boundary: the host side adds only a **read-only** turn-boundary stream (session id + turn index + end reason), carrying **no chat content, history, or approval details**; the browser side mounts one floating entry on `shell.overlay` and touches nothing else in the host UI.
 
-### The border, plus a little companion in the window
+### Five balls, five characters, replicated pixel-by-pixel
 
-Besides the border, the plugin ships **Prism** — a ba-ji-ball pet drawn in pure CSS: a candy round ball with a simple face. **The five balls are five playable characters** (Red, Yellow, Pink, Blue, Green); the color is the character's identity and never changes with mood — switch anytime from the context menu or settings. Drag it around, it remembers where you left it, it sits on the frame-wide `shell.overlay` layer, and it has six moods layered on top of whichever character you picked: resting, working, waiting on you, celebrating, error, and napping.
+The five balls are **not** one character in five colors — they are five independent characters: Hong-Hong (tsundere, cool), Huang-Huang (lazy, half-lidded), Fen-Fen (derpy, big-eyed), Lan-Lan (rational, bespectacled), Lyu-Lyv (grumpy, cross-eyed). Every face is **measured and replicated pixel-by-pixel** from the reference art (`tools/anim-bench/scan-faces-precise.mjs`, connected components + scanlines, part accuracy ≤0.5% of face width): flat-filled bodies, mouths as scanline-derived `clip-path` polygons, Huang-Huang's two-layer "white eyeball + red lid", Lan-Lan's frames scaling with body size. Every circle carries a `longhand + !important` hardening contract — host-wide global styles cannot reshape them.
 
-Prism's **success and failure follow the host's authoritative turn boundaries** (a read-only `session/event` stream delivered over a Typert remote): a cancelled turn never celebrates, because celebrating a cancelled turn is a lie. When that stream is unavailable the pet falls back to the client's own session state for "running / waiting on you" — and stays quiet about outcomes it cannot know.
+Success and failure follow the host's **authoritative turn boundary** (via the Typert remote reading `session/event` `turn/end`): a cancelled turn never gets celebrated — celebrating a cancel would be lying. Without the remote runtime the pet quietly degrades to client-session-only moods, never inventing conclusions.
 
-### A pet that watches you
+### A pet that interacts
 
-- **Its eyes follow your pointer** — the pupils glide a little (capped at 5.5 px, so they never leave the eye); the gaze always slides, never jumps. Leave the pointer still for a few seconds and the gaze wanders on its own, then drifts slowly back — random saccades at irregular intervals, like a mind of its own.
-- **Poke it** — it squashes and springs back, says one of five rotating lines, and pure-CSS candy hearts float out.
-- **Double-poke it** — it spins a full turn, then sees ×_× for a moment.
-- **Press and hold** — that's a pat: a jelly inflate, happy closed eyes, full blush.
-- **Poke it while it naps** — a startle: it bounces up with a shiver, instantly awake.
-- **Drag it** — it tilts with your momentum, like it's dangling from your fingertip, with a gentle pinch-lift; letting go earns a little landing bounce.
-- **Leave it alone long enough** — it hums itself a tune, ♪ notes floating out (random 36–60 s cooldown).
-- **Every appearance** — a random entrance animation: pop in / drop in (its shadow lands first) / spin in / hop in.
-- **Right-click** (or press `Shift+F10`) for a small menu: character / watch scope / size / let it hide.
-- **Its lines rotate** — two per state, so it never repeats itself.
-- **It notices its environment** — resizing the window makes it stumble, waking up earns you a stretch, and scrolling the chat pulls its gaze along with the content. It lives in the window; it isn't stuck on it.
-- **Three animation intensities** — full / subtle / off. Subtle keeps every reaction but tones down the amplitude; off keeps only expression changes. The OS-level reduced-motion preference always wins.
+- **Eyes follow the pointer**: pupils glide (capped at 5% of body width, further damped per character — the smallest eye-whites get the smallest gain; pupils never slide off the whites), always gliding, never jumping; after a few idle seconds they wander on their own and drift back; the body leans ~1° toward its own gaze;
+- **Poke**: a squash-and-rebound with a "jelly afterquiver" (damped tail, volume-preserving), a spoken line, and two or three candy hearts popping from **above the head**;
+- **Rapid pokes (double-click)**: a full spin, then a dizzy ×_× moment;
+- **Press and hold**: a pat — jelly bulge, happy squint, blush;
+- **Poke while napping**: a startle — it springs up, fully awake;
+- **Drag**: it leans with inertia like hanging from your fingertip, with a landing bounce on release;
+- **Left idle**: it hums a tune, ♪ notes floating out (random 36–60 s cooldown);
+- **Every entrance**: a random intro — pop / airdrop (shadow lands first) / spin / hop;
+- **Right-click** (or `Shift+F10`): a small menu — character / scope / size / hide;
+- **Environment-aware**: stumbles when the window resizes, stretches on waking, glances at scrolling chat — living in the window, not pasted on it;
+- **Motion levels**: full / gentle / off — gentle keeps every reaction with reduced amplitude; off keeps expressions only (system `prefers-reduced-motion` always wins).
 
 ### The border is the session state
 
-The ring mirrors the live session: it speeds up while the agent is running (4 s → 1.2 s per loop), turns amber with a slow pulse while a tool approval or ask-user prompt is pending, turns red with a fast pulse on send failures or agent errors, and plays a one-loop celebrate flash when a turn completes. You always know where the agent is without watching the screen.
+The ring reflects the conversation in real time: faster while the agent runs (4 s → 1.2 s/turn); amber slow-pulse while a tool approval or question awaits you; red fast-pulse on failures; a one-cycle celebratory flash when a turn completes. Peripheral vision is enough to know where things stand.
 
-### Seven palettes, one that follows your theme
+### Seven palettes, theme-following included
 
-Classic rainbow / aurora / sunset / peach / ocean / cyberpunk neon — plus *follow theme*, derived from the host brand token via `color-mix`, tracking light/dark switches instantly.
+Classic rainbow / aurora / sunset / peach / ocean / cyberpunk — plus **follow-theme**, derived from the host brand color via `color-mix`, following light/dark switches instantly.
+
+## 🎭 The five characters
+
+| Character | Eyes | Mouth | Idle motion | Temper |
+| --- | --- | --- | --- | --- |
+| **Hong-Hong** (red) | Round white eyes, green iris | Solid left-pointing wedge + bar | Sharp nods | Tsundere, cool |
+| **Huang-Huang** (yellow) | White eyeball + red half-lid | White grin + mouth-corner bean | Lazy pendulum | Lazy, aloof |
+| **Fen-Fen** (pink) | Big vertical whites, blue iris (cross-eyed) | Wavy stroke | Bounce (squash & stretch) | Derpy, sweet |
+| **Lan-Lan** (blue) | Yellow square frames (size-scaled), dark pupils | Thick V | Metronome breathing | Rational, earnest |
+| **Lyu-Lyv** (green) | Jammed-together small whites, orange iris (overhanging) | Low-left-to-high-right zigzag | Impatient twitch | Grumpy |
+
+Six states (resting / working / waiting / celebrating / error / sleeping) get a character-specific take on each ball: Huang-Huang's lid presses lower while working and the pupil peeks out while waiting; Lan-Lan's frames keep their shape while sleeping and while blinking. State switches tween via `scale` / `translate` — expressions *become*, they don't snap.
 
 ## 🌈 Features
 
-- **Rainbow marquee border** around the composer card (`[data-composer-card]` host anchor), flowing via a rotating gradient layer — the gradient is painted once and then spun by the compositor, so the border costs **zero repaints per frame**.
-- **Desktop pet "Prism"**: sits on `shell.overlay` (the frame-wide floating layer the host recommends for draggable overlays), draggable, with a persisted position and a greeting bubble on tap. Drawn entirely in CSS geometry in a hand-drawn ba-ji-ball style — **no external assets**, hence no third-party artwork licensing question.
-- **Five playable characters**: Red, Yellow, Pink, Blue, Green — five independent characters, each with a signature pupil color (red ball / green pupils, yellow / red, pink / blue, blue / dark, green / orange). The color is the identity; expressions change with state. Switch anytime from the context menu or settings.
-- **It interacts**: pupils track your pointer on a gliding curve, a poke squashes it and pops candy hearts, dragging makes it swing with your momentum, and right-click (or `Shift+F10`) opens a small menu (character / watch scope / size / hide).
-- **Six moods**: resting (breathing + sway + green pupils with a pout), working (gold-rim glasses + a steady little rhythm), waiting (happy squint + a light bounce), celebrating (bounce + sparkles + big grin + tongue), error (wide eyes + sweat drop), and napping (closed eyes, Zzz — it falls asleep after two idle minutes). Face details (eye shape / pupil color / mouth / glasses / blush) differ per state and cross-fade on switch — expressions *become*, they don't snap.
-- **Candy-ball rendering, pure CSS**: radial-gradient sphere + five layers of light (main reflection, star dot, shaded back, contact shade, ground bounce) + a specular that drifts with the breathing; a radially fading ground shadow that syncs with every celebration jump, startle, landing, stretch and drop-in entrance (secondary action); the round silhouette is pinned by `clip-path`, immune to host-global style overrides.
-- **Authoritative turn boundaries**: the host half contributes a read-only event stream over Typert (`remote.rainbowPet/watch`); the browser half validates every frame against the same Zod schema before trusting it, and reconnects on a sequence gap rather than acting on half a state.
-- **Settings panel** (`Settings` → `Rainbow border`): enable/disable, flow speed (1–10 s per loop), ring width (1–6 px), color scheme, placement (all sides / top / bottom), reverse flow, and a breathing brightness overlay — plus a **desktop pet** group: show the pet, character (five to pick from), watch scope (all sessions / current session), animation intensity (full / subtle / off), and pet size (0.6–1.6×). All preferences persist in `localStorage` and apply live.
+- **Rainbow marquee border**: flowing ribbon around the composer card, driven by a rotating layer — **measured repaints per frame: 360 → 0**.
+- **Desktop pet "Prism"**: lives on `shell.overlay`, draggable with persisted position; pure CSS geometry, **zero external assets**, therefore no third-party-character licensing concerns.
+- **Five selectable characters** (context menu or settings): ball color is identity, expressions change with state — five base faces + 25 dedicated keyframe sets (five states × five characters), each with its own motion language.
+- **Interaction details**: jelly-afterquiver poke rebound, candy hearts from above the head (2–3, auto-throttled when spam-poked), inertial drag sway, pointer-following pupils + random saccades + gaze lean.
+- **Authoritative turn boundary**: the host half contributes a read-only event stream (`remote.rainbowPet/watch`); the browser half validates every frame with the same Zod schema, requires contiguous sequence numbers, and backs off on gaps.
+- **Host-style hardening**: every circle (body / eyes / pupils / hit area / aura) is pinned with longhand radii + `!important` — host-wide `button span` rules cannot deform them; frame stroke width uses container-query units, scaling with pet size, with a fixed-width fallback on older engines.
+- **Settings panel** (`Settings` → `Rainbow border`): enable, speed, width, palette, edge, reverse flow, breathing glow; a **Desktop pet** group: enable, character, scope, motion level, size (0.6–1.6×). All preferences persist in `localStorage`, effective immediately.
 
-  ![Settings panel: seven palettes, flow speed, ring width and placement](assets/02-settings-rainbow.png)
-- **Prism in a real host**:
+  ![Settings panel](assets/02-settings-rainbow.png)
 
-  ![Prism: a speech bubble and candy hearts](assets/08-pet-live.png)
-- **Seven color schemes**: classic rainbow, aurora, sunset, peach, ocean, cyberpunk neon (cyan/violet/magenta with a white lamp-flash segment), and *follow theme* — derived from the host brand token via `color-mix`.
-- **Session-state awareness** via the host dock seat: the ring speeds up while the agent is running (4 s → 1.2 s per loop), turns amber with a slow pulse while a tool approval or ask-user prompt is pending, turns red with a fast pulse on send failures or agent errors, and plays a one-loop celebrate flash when a turn completes. Priority: error > attention > running.
-- **Focus boost**: the ring brightens and saturates while the composer has focus, easing back on blur.
-- **Accessibility**: honors `prefers-reduced-motion` (animations disabled, static ring kept); settings controls carry localized labels and aria attributes.
-- **Bilingual copy** (zh/en) through the host locale registry; follows the host language setting.
+- **Under simulated host conditions** (host-like global rules applied — see [`preview/pet-client-sim.html`](preview/pet-client-sim.html)):
 
-## 🎨 Palettes
+  ![Prism under host-condition simulation: bubble line and pointer tracking](assets/08-pet-live.png)
 
-| Cyberpunk neon | Aurora | Sunset |
-| --- | --- | --- |
-| ![Cyberpunk neon: cyan/violet/magenta on dark](assets/03-cyberpunk-dark.png) | ![Aurora: teal-green on dark](assets/04-aurora-dark.png) | ![Sunset: orange-violet on dark](assets/05-sunset-dark.png) |
+- **Seven palettes**: classic rainbow, aurora, sunset, peach, ocean, cyberpunk, and **follow-theme** (`color-mix` from host brand tokens).
 
-**Follow theme** (light mode): the ring takes the host brand color and tracks theme switches instantly.
+  | Cyberpunk | Aurora | Sunset |
+  | --- | --- | --- |
+  | ![Cyberpunk](assets/03-cyberpunk-dark.png) | ![Aurora](assets/04-aurora-dark.png) | ![Sunset](assets/05-sunset-dark.png) |
 
-![Follow theme: tied to the host brand color in light mode](assets/06-theme-follow-light.png)
+- **Follow-theme** (light mode): the border takes the host brand color and follows theme switches instantly.
+
+  ![Follow theme](assets/06-theme-follow-light.png)
+
+- **Session awareness**: the ring speeds up while running; amber slow-pulse while waiting for approvals/questions; red fast-pulse on errors; a celebratory flash on turn completion. Priority: error > attention > running.
+- **Focus glow**: the ring brightens while the composer is focused, easing back on blur.
+- **Accessibility**: honors `prefers-reduced-motion` (animations disabled, static ring and expressions kept); localized labels and aria attributes on all controls.
+- **Bilingual**: copy is served through the host locale registry and follows the host language.
 
 ## 📦 Install
 
-From the dsh CLI:
+Via the dsh CLI:
 
 ```sh
 dsh plugin add @kenz1117/dsh-ui-rainbowspeak
 ```
 
-Or add it to a profile `package.json` manually:
+Or add it to your profile's `package.json`:
 
 ```json
 {
@@ -129,50 +140,38 @@ For local development, point the dependency at a checkout:
 }
 ```
 
-then run `pnpm install` in the profile directory and restart the host. With the `link:` form, `pnpm bundle` in the plugin repo is enough for the next host restart to pick changes up — no reinstall needed.
+Then run `pnpm install` in the profile directory and restart the host. With the `link:` form, running `pnpm bundle` in the plugin repo is enough — the host picks up changes on its next restart, no reinstall needed.
 
 ## ⚙️ How it works
 
 - The plugin mounts a single `<style data-plugin>` stylesheet on apply and removes it on dispose (effect lifecycle).
-- The border is two injected layers inside the composer card: a carrier that masks the gradient down to the card edge, and a square colour layer that spins about the card centre. `::before` stays as a static fallback for the moment before the layers are attached. Ring width and flow period are consumed from `--dsh-rainbow-*` variables.
-- The colour layer rotates 360° via `transform`, so the flow no longer depends on `@property` — and no longer repaints the whole card every frame (measured: 360 repaints per 3s → 0).
-- User preferences and session state are projected onto `<html>` as `data-rainbow-*` attributes and inline CSS variables, so every toggle applies instantly without rebuilding the stylesheet.
-- The state bridge reads the host session seat and the global pending-interaction seat (approval/ask-user) — plugin-level only, no agent-loop involvement.
-- The pet's **host half** provides a read-only `rainbowPet` service: it listens for `turn/start` / `turn/end` on `session/event` and projects only boundary metadata (session identity, turn sequence, end reason) — no history, no content, no approvals. It contributes that contract through the `./typert` subpath.
-- The pet's **browser half** mounts the same contract via `ctx.remote.$mount()`, then injects the `remote.rainbowPet` namespace and consumes the stream. Every frame is validated against the host's own Zod schema, and frame sequence numbers must be contiguous — a gap triggers a backed-off reconnect.
-- When the remote runtime (API Gateway) is absent the pet degrades quietly: it still reads "running / waiting on you" from the client session state, and stays silent about outcomes it cannot know.
+- The composer card's `::before` paints the `conic-gradient`; `mask` compositing keeps only the edge ring; the color layer is a square conic gradient rotating 360° around the card center — no `@property` angle interpolation needed.
+- Preferences and session state project onto `<html>` `data-rainbow-*` attributes and inline CSS variables — every switch is immediate, no stylesheet rebuild.
+- The pet's **host half** provides a read-only `rainbowPet` service listening to `turn/start` / `turn/end`, projecting boundary metadata only; the **browser half** consumes it via `ctx.remote.$mount()`, validating every frame with the same Zod schema, checking sequence continuity, and backing off on gaps.
+- The pet itself is pure CSS geometry (no images, no canvas): mouths are `clip-path` polygons derived from reference-art scanlines; animation uses only `scale` / `translate` / `rotate` compositing-friendly properties — **zero repaints per frame**; state switches never trigger layout.
+- The look is fully hardened against host styles and size changes: circles pinned with longhand + `!important`, frame stroke in `cqw` scaling with body size (fixed-px fallback on older engines), gaze following proportional to body width and damped per character.
 
 ## 🛠 Development
 
 ```sh
-pnpm install        # deps (peers link into the monorepo checkout via scripts/link-peers.mjs)
-pnpm test           # vitest suite (node half, preferences clamping, state projection, pet state machine, bundle smoke)
+pnpm install        # deps (peers linked via scripts/link-peers.mjs for monorepo checkouts)
+pnpm test           # vitest suite (node half, pref clamping, state projection, pet state machine, bundle smoke)
 pnpm typecheck      # tsc --noEmit
 pnpm bundle         # tsdown: lib/index.js + lib/remote.js + lib/typert.host.js (node half) + lib/client.js (browser IIFE)
-pnpm preview        # regenerate preview/pet-states.html: an offline sheet of the six moods
-pnpm bench:anim     # animation benchmark: same-machine before/after, sampling paint/recalc/layout
+pnpm preview        # generates two previews: pet-states.html (5 characters × 6 states matrix)
+                    #                    pet-client-sim.html (host-condition sim: host rules + pointer gaze + 3 sizes)
+pnpm bench:anim     # animation bench: Paint / style recalc / layout metrics
+pnpm bench:pet-visual      # six-state visual regression (pixel-level)
 ```
 
-The `client` half is a self-contained IIFE injected into the host web client; the `node` half carries the rainbow state bridge and the pet's read-only boundary service, and exports the `./typert` host-face manifest.
-
-`preview/pet-states.html` needs no host: it inlines `src/client/pet.module.css` verbatim next to six static markups. Run `pnpm preview` after a CSS change and open it in a browser to compare all six moods at once — far quicker than clicking through the real host.
-
-Animation quality should not be judged by feel alone. `tools/anim-bench/` is a reproducible harness that extracts the real styles and markup from the source, runs headless Chromium, and samples `Paint`, `RasterTask`, style-recalc and layout counters:
-
-```sh
-pnpm bench:anim               # same-machine before/after, with per-variant self-checks
-pnpm bench:pet-visual        # visual regression: snapshot the six moods and diff them
-pnpm bench:refactor-visual   # before/after visual equivalence of the expression refactor
-```
-
-The audit and the outcomes live in [`docs/animation-audit.md`](docs/animation-audit.md).
+The replica toolchain (`tools/anim-bench/`): `scan-faces-precise.mjs` pixel-precise reference measurement (connected components + scanlines), `scan-runs.mjs` targeted full-run color segments, `mouth-poly.mjs` scanlines → `clip-path` polygons, `compare-faces.mjs` reference-vs-impl-vs-diff triptychs, `measure-grid.mjs` gridded reading sheets, `measure-implementation.mjs` dual-caliber DOM re-measurement. Specs and findings live in [`docs/character-design.md`](docs/character-design.md).
 
 ## 🤝 Compatibility
 
-- Client platform: `web` (desktop/web host renders). The flow is driven by a rotating layer, so it needs no `@property` support; if the layers cannot be attached the border degrades to a static gradient ring.
-- Peer: `@deepseek-ai/cordis` (provided by the host at runtime).
-- The pet needs host support for Typert (`@deepseek-ai/dsh-typert-loader`) and the client Remote runtime. Without them the plugin still loads, and the pet degrades to "client session state only".
-
+- **Host**: dsh desktop/web hosts; tested against **0.2.x** (`engines.dsh >= 0.1.2-alpha.1` is the floor). Peer: `@deepseek-ai/cordis` (provided by the host runtime).
+- **Engine**: Chromium/Chrome **≥ 105** for the full experience (container-query units, `@property`-driven blinking). Older engines degrade gracefully: frame stroke falls back to a fixed 2.1px, blinking falls back to whole-eye squashing — expressions and palettes are unaffected.
+- **Pet remote**: needs Typert + client Remote runtime support; without them the plugin still loads and the pet degrades to client-session-only moods.
+- **Accessibility**: `prefers-reduced-motion` honored at all tiers.
 
 ## 📄 License
 

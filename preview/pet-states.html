@@ -26,6 +26,19 @@
  * 令牌，深浅主题自动跟随。
  */
 
+/**
+ * 小虹 — 五角色吧唧球桌宠样式
+ */
+
+/* 眨眼系数（0..1，可动画）：蓝球的眨眼不动镜框盒子，只按这个系数
+   收合「镜片内容」（白眼珠/瞳珠）。注册为 @property 才能参与插值；
+   命名带命名空间防宿主撞车。 */
+@property --dsh-pet-blink {
+  syntax: '<number>';
+  inherits: true;
+  initial-value: 0;
+}
+
 .pet {
   position: fixed;
   z-index: 40;
@@ -48,8 +61,12 @@
   user-select: none;
   -webkit-user-select: none;
   /* 隔离：宿主样式改不动桌宠内部，桌宠的重算也不会外溢到宿主。
-     不加 paint —— 气泡与菜单要能溢出到桌宠盒子外。 */
+     不加 paint —— 气泡与菜单要能溢出到桌宠盒子外。
+     container-type: size 让内部能用 cqw 按宠物实际尺寸取单位
+     （镜框线宽随 0.7×/1×/1.4× 缩放；size containment 要求尺寸
+     不依赖内容——宠物尺寸本来就是显式给定的，安全）。 */
   contain: layout style;
+  container-type: size;
 }
 
 .hit {
@@ -63,7 +80,17 @@
   cursor: grab;
   pointer-events: auto;
   touch-action: none;
-  border-radius: 50%;
+  /* 按钮加固（同 .body 合同）：客户端宿主会给 button 铺白底/圆角/边框
+     （特异性高于本类，all:unset 压不住）——球外那个「圆角矩形白圈」
+     就是它。全部 !important 收回来：命中区必须无形。 */
+  background: transparent !important;
+  border: 0 !important;
+  box-shadow: none !important;
+  outline-offset: 4px;
+  border-top-left-radius: 50% !important;
+  border-top-right-radius: 50% !important;
+  border-bottom-left-radius: 50% !important;
+  border-bottom-right-radius: 50% !important;
   /* 被拎起来时整只轻微放大——「被抓在手心」的捏起感。 */
   transition: transform 0.22s cubic-bezier(0.2, 0.9, 0.3, 1);
 }
@@ -117,11 +144,16 @@
   will-change: transform;
 }
 
-/* 状态光环：随状态换色，庆祝时更亮。 */
+/* 状态光环：随状态换色的圆形柔光（用户要保留的效果）。
+   光环也是 button 里的 span——圆角同样加固，防宿主把它改成圆角矩形
+   （球外那圈「白圆角矩形」就是宿主按钮样式，见 .hit 的注释）。 */
 .aura {
   position: absolute;
   inset: 4%;
-  border-radius: 50%;
+  border-top-left-radius: 50% !important;
+  border-top-right-radius: 50% !important;
+  border-bottom-left-radius: 50% !important;
+  border-bottom-right-radius: 50% !important;
   background: radial-gradient(circle, var(--pet-aura, rgba(217, 73, 61, 0.22)) 0%, transparent 70%);
   filter: blur(9px);
   opacity: 0.8;
@@ -162,7 +194,9 @@
    二、clip-path 出正圆——与 radius 体系完全无关，宿主改写 radius 也无效。
    clip 必须加在「自身无动画」的伪元素上：clip 与元素自身动画叠加会在
    缩放帧产生光栅化接缝（实测），而伪元素只随 body 的动画整体移动。
-   投影因此上移到 .body 本体（clip 会裁掉伪元素外面的阴影）。 */
+   投影因此上移到 .body 本体（clip 会裁掉伪元素外面的阴影）。
+   底色为**纯平涂**：参考图十字/对角/边环逐点取样全部同色（B1 实测，
+   scan-faces-precise.mjs），五角色只换色相，不叠渐变。 */
 .body::before {
   content: '';
   position: absolute;
@@ -172,39 +206,36 @@
   border-bottom-left-radius: 50% !important;
   border-bottom-right-radius: 50% !important;
   clip-path: circle(50%);
-  background: radial-gradient(circle at 33% 27%, #ea6a5b 0%, #d9493d 52%, #bd352b 100%);
+  background: #da361d;
 }
 
 .pet:hover .body {
   filter: brightness(1.045);
 }
 
-/* 五个角色的球色：色相对齐参考图实测值（粉 #e76ca3 / 黄 #f1cc3d /
-   红 #da361d / 绿 #1ca939 / 蓝 #2ba6e1），仍保留径向渐变的体积感。 */
+/* 五个角色的球色：参考图实测平涂值（scan-faces-precise.mjs 九点中位取样）：
+   粉 #e76ca3 / 黄 #f0cd3f / 红 #da361d / 绿 #1ca939 / 蓝 #2ba6e1。 */
 .pet[data-ball='yellow'] .body::before {
-  background: radial-gradient(circle at 33% 27%, #f7d75a 0%, #f1cc3d 52%, #d9b32c 100%);
+  background: #f0cd3f;
 }
 
 .pet[data-ball='pink'] .body::before {
-  background: radial-gradient(circle at 33% 27%, #ef7fb4 0%, #e76ca3 52%, #cf5a90 100%);
+  background: #e76ca3;
 }
 
 .pet[data-ball='blue'] .body::before {
-  background: radial-gradient(circle at 33% 27%, #45b4ea 0%, #2ba6e1 52%, #1c8ac4 100%);
+  background: #2ba6e1;
 }
 
 .pet[data-ball='green'] .body::before {
-  background: radial-gradient(circle at 33% 27%, #2fc44a 0%, #1ca939 52%, #128c2c 100%);
+  background: #1ca939;
 }
 
-/* 球面反光：让圆球有体积感。
-   五层光——左上大高光（主反射）、高光里的小星点（第二反射）、
-   右下暗部（球背光面）、底缘接触暗影（球「坐」在地上的重量）、
-   再往上一线地面反光（桌面把光弹回来）。
-   渐变终点一律用同色相的 0 alpha（`transparent` 会经 rgba(0,0,0,0)
-   插值出灰边，高光就「贴」上去了）。
-   高光整体跟着呼吸轻微漂移（pet-sheen），球面就有了「活的反光」。 */
+/* 球面高光/暗角：参考图是纯平涂（B1 结论），高光会让差分虚高、
+   也让脸「不像那只球」。整体停用；要找回 3D 质感，把 display:none
+   去掉即可（五层渐变原样保留在 background 里）。 */
 .sheen {
+  display: none;
   position: absolute;
   inset: 0;
   /* 同 .body::before：longhand + clip 双保险。 */
@@ -224,9 +255,10 @@
   --pet-sheen-shift: -1%;
 }
 
-/* 轮廓：外圈深色细描边（浅色主题下把形从亮背景里勾出来），
-   内圈亮边（玻璃边缘的全反射）。 */
+/* 轮廓：参考图球边没有描边环（纯色直接接白底），描边同样停用；
+   恢复方式同 .sheen。 */
 .rim {
+  display: none;
   position: absolute;
   inset: 0;
   /* 同 .body::before：longhand + clip 双保险，轮廓环被改写也裁回正圆。 */
@@ -256,9 +288,15 @@
   top: var(--eye-top, 37%);
   width: var(--eye-w, 18%);
   height: var(--eye-h, 22%);
-  border-radius: var(--eye-radius, 50%);
-  background: var(--eye-bg, radial-gradient(circle at 50% 32%, #ffffff 0%, rgba(255, 255, 255, 0.97) 62%, rgba(226, 228, 220, 0.95) 100%));
-  box-shadow: inset 0 1.5px 2px rgba(15, 17, 21, 0.12);
+  /* 圆形加固（同 .body 合同）：宿主的全局后代规则（`button span` 一类）
+     会改写 shorthand border-radius 把圆形改成圆角矩形——预览页没有宿主
+     规则看不出来，客户端里就会「眼睛变形/位置不对」。四条 longhand
+     + !important 让宿主够不着；状态切换改的是 --eye-radius，照样过渡。 */
+  border-top-left-radius: var(--eye-radius, 50%) !important;
+  border-top-right-radius: var(--eye-radius, 50%) !important;
+  border-bottom-left-radius: var(--eye-radius, 50%) !important;
+  border-bottom-right-radius: var(--eye-radius, 50%) !important;
+  background: var(--eye-bg, #fbfdfb);
   overflow: hidden;
   transform-origin: center;
   animation: pet-blink var(--pet-blink-period, 7.4s) ease-in-out infinite;
@@ -304,7 +342,11 @@
   width: var(--iris-w, 66%);
   height: var(--iris-h, 66%);
   margin: var(--iris-mx, -33%) 0 0 var(--iris-my, -33%);
-  border-radius: 50%;
+  /* 瞳珠也是 span：圆形同样加固（见 .eyeLeft 的注释）。 */
+  border-top-left-radius: 50% !important;
+  border-top-right-radius: 50% !important;
+  border-bottom-left-radius: 50% !important;
+  border-bottom-right-radius: 50% !important;
   /* 虹膜：每个角色一套（色相、大小都不同）。 */
   background: var(--iris, radial-gradient(circle at 42% 36%, #55bd6e 0%, #2f9e50 62%));
   /* 初值；实际位移由 JS 写内联 transform（直接写元素，失效范围最小）。 */
@@ -335,7 +377,9 @@
   height: 11%;
   border-radius: 50%;
   background: radial-gradient(circle, rgba(255, 122, 152, 0.52) 0%, rgba(255, 122, 152, 0) 72%);
-  opacity: 0.45;
+  /* 参考图的脸没有腮红（纯平涂球 + 五官）——默认完全隐藏，只在
+     庆祝 / 被摸摸 / 出错这些互动状态短暂浮现。 */
+  opacity: 0;
   transition: opacity 0.25s ease, transform 0.25s ease;
 }
 
@@ -360,6 +404,9 @@
   border-bottom: var(--mouth-border, none);
   background: var(--mouth-bg, light-dark(#20242a, #101214));
   transform: rotate(var(--mouth-rot, -7deg));
+  /* 复刻嘴形：多边形轮廓直接来自参考图逐像素扫描（scan-faces-precise.mjs
+     → mouth-poly.mjs），状态演绎仍只走 scale / translate / rotate。 */
+  clip-path: var(--mouth-clip, none);
   transition:
     transform var(--pet-dur-base) var(--pet-ease-standard),
     border-radius var(--pet-dur-base) var(--pet-ease-standard),
@@ -738,57 +785,110 @@
    translate 换形，绝不触发重排。
    ———————————————————————————————————————————————— */
 
-/* 蓝球的黄框眼镜：框画在眼睛的描边上——描边不会被 overflow 裁剪，
-   而眼镜必须探出眼白之外。鼻梁画在 .face::before 上（两只镜片之间那一条）。 */
+/* 蓝球的黄框眼镜：框画在眼盒的 box-shadow 环上（环画在盒外，
+   眼盒 = 镜片内孔，小白眼/黑瞳的百分比直接量内孔，不用再做
+   border-box 换算）。镜片内孔透出球底色——参考图实测如此。
+   鼻梁画在 .face::before 上（两框之间那一小段，位于框顶下方）。 */
 .pet[data-ball='blue'] .eyeLeft,
 .pet[data-ball='blue'] .eyeRight {
-  border: var(--glasses-width, 3px) solid var(--glasses-color, #eccd3f);
-  border-radius: var(--glasses-radius, 26%);
+  box-shadow: 0 0 0 var(--glasses-width, 2cqw) var(--glasses-color, #eccd3f);
+  border-radius: var(--glasses-radius, 9%);
+  background: transparent;
+}
+
+.pet[data-ball='blue'] .eyeLeft::before {
+  content: '';
+  position: absolute;
+  inset: 20.8% 4.7% 30.3% 53%;
+  border-radius: 50%;
+  background: #fbfdfb;
+}
+
+.pet[data-ball='blue'] .eyeRight::before {
+  content: '';
+  position: absolute;
+  inset: 23% 58.9% 30.3% 6.2%;
+  border-radius: 50%;
+  background: #fbfdfb;
 }
 
 .pet[data-ball='blue'] .face::before {
   content: '';
   position: absolute;
-  top: 33%;
-  left: 50%;
-  width: 9%;
-  height: 4%;
-  margin-left: -4.5%;
+  top: 36.5%;
+  left: 51.6%;
+  width: 5.6%;
+  height: 4.8%;
+  margin-left: -2.8%;
   border-radius: 2px;
   background: var(--glasses-color, #eccd3f);
 }
 
-/* ——— 粉球：憨、呆萌、眼睛大 ——— */
+/* 蓝·眨眼：镜框是身份，不参与眨眼（同打盹不压镜框的逻辑）。
+   通用眨眼是 scaleY 整只眼睛——镜框会跟着压成一条线；这里改成动画
+   --dsh-pet-blink 系数，白眼珠按系数收合、瞳珠按系数隐没，镜框不动。
+   （节奏与通用 pet-blink 的双眨一致。） */
+.pet[data-ball='blue'] .eyeLeft,
+.pet[data-ball='blue'] .eyeRight {
+  animation: pet-blink-lens var(--pet-blink-period, 7.4s) ease-in-out infinite;
+}
+
+@keyframes pet-blink-lens {
+  0%, 34% { --dsh-pet-blink: 0; }
+  36%, 37.4% { --dsh-pet-blink: 1; }
+  38%, 39% { --dsh-pet-blink: 0; }
+  42%, 43.4% { --dsh-pet-blink: 1; }
+  44%, 100% { --dsh-pet-blink: 0; }
+}
+
+.pet[data-ball='blue'] .eyeLeft::before,
+.pet[data-ball='blue'] .eyeRight::before {
+  transform: scaleY(calc(1 - var(--dsh-pet-blink) * 0.94));
+}
+
+.pet[data-ball='blue'] .pupil {
+  opacity: calc(1 - var(--dsh-pet-blink));
+}
+
+/* ——— 粉球：憨、呆萌、眼睛大 ———
+   数值来自参考图逐像素实测（scan-faces-precise.mjs，% 脸宽，脸盒=2R）：
+   眼白 16.94×22.31 @ (28.93,33.88)，右眼整体低 1.24；
+   蓝瞳 11.98×16.12（占眼白 70.7%×72.3%），双眼瞳都朝脸中偏（左眼 +4.8%、
+   右眼 -4.8%），并各下沉约 3.7–6.2（瞳珠向中间聚，参考图的「对眼」感）；
+   嘴是 V 谷-峰-V 谷的波浪笔（中心线 41.5,63.7 → 46.3,66 → 52.9,62 →
+   58.7,64.4 → 64.4,61），clip-path 多边形直接由扫描线生成（mouth-poly.mjs）。 */
 .pet[data-ball='pink'] {
-  /* 大竖椭圆白眼，蓝虹膜几乎填满 */
-  --eye-w: 20%;
-  --eye-h: 31%;
-  --eye-top: 13%;
-  --eye-left: 30%;
-  --eye-right: 28%;
-  --iris-w: 56%;
-  --iris-h: 44%;
-  --iris-mx: -28%;
-  --iris-my: -33%;
-  --iris: radial-gradient(circle at 44% 36%, #1aaff4 0%, #029ee8 62%);
-  /* 双波浪嘴：本体是第一个下弧，::before 是第二个 */
-  --mouth-w: 17%;
-  --mouth-h: 8%;
-  --mouth-top: 58%;
-  --mouth-left: -6%;
-  --mouth-bg: transparent;
-  --mouth-radius: 0 0 90% 90% / 0 0 100% 100%;
-  --mouth-border: 2.4px solid #1b1b1b;
-  --mouth-accent: block;
-  --mouth-accent-x: 82%;
-  --mouth-accent-y: 0;
-  --mouth-accent-w: 100%;
-  --mouth-accent-h: 100%;
-  --mouth-accent-radius: 0 0 90% 90% / 0 0 100% 100%;
-  --mouth-accent-bg: transparent;
-  --mouth-accent-border: 2.4px solid #1b1b1b;
-  --mouth-accent-transform: none;
-  --mouth-accent-origin: center;
+  --eye-w: 16.94%;
+  --eye-h: 22.31%;
+  --eye-top: 33.88%;
+  --eye-left: 28.93%;
+  --eye-right: 26.04%;
+  --iris-w: 72%;
+  --iris-h: 73.5%;
+  --iris: #039ee8;
+  --mouth-w: 23.4%;
+  --mouth-h: 7.7%;
+  --mouth-top: 59.8%;
+  --mouth-left: -8.8%;
+  --mouth-bg: #211310;
+  --mouth-radius: 0;
+  --mouth-rot: 0deg;
+  --mouth-border: none;
+  --mouth-accent: none;
+  --mouth-clip: polygon(0.51% 49.61%,4.06% 38.96%,7.61% 38.96%,11.11% 44.29%,14.66% 60.39%,18.16% 65.71%,21.71% 65.71%,25.26% 65.71%,28.76% 55.06%,32.31% 38.96%,35.85% 22.86%,39.36% 17.4%,42.91% 12.08%,46.45% 12.08%,49.96% 12.08%,53.5% 17.4%,57.05% 22.86%,60.56% 38.96%,64.1% 44.29%,67.61% 49.61%,71.15% 49.61%,74.7% 49.61%,78.21% 44.29%,81.75% 44.29%,85.3% 28.18%,88.8% 12.08%,92.35% 6.75%,95.9% 6.75%,99.04% 9.85%,100.98% 17.97%,100.98% 28%,99.04% 36.12%,95.9% 39.22%,92.35% 50%,88.8% 60.78%,85.3% 66.1%,81.75% 71.43%,78.21% 71.43%,74.7% 71.43%,71.15% 71.43%,67.61% 71.43%,64.1% 71.43%,60.56% 66.1%,57.05% 60.78%,53.5% 55.32%,49.96% 44.68%,46.45% 50%,42.91% 44.68%,39.36% 60.78%,35.85% 71.43%,32.31% 82.21%,28.76% 87.53%,25.26% 87.53%,21.71% 92.99%,18.16% 92.99%,14.66% 87.53%,11.11% 82.21%,7.61% 76.88%,4.06% 66.1%,0.51% 50%,0.48% 49.96%,0.45% 49.87%,0.45% 49.74%,0.48% 49.65%);
+}
+
+/* 参考图的右眼整体低一点、瞳珠各向中间偏——都是实测的非对称。 */
+.pet[data-ball='pink'] .eyeRight {
+  top: 35.12%;
+}
+
+.pet[data-ball='pink'] .eyeLeft .pupil {
+  margin: -39.07% 0 0 -30.51%;
+}
+
+.pet[data-ball='pink'] .eyeRight .pupil {
+  margin: -43.97% 0 0 -40.19%;
 }
 
 /* 粉·待机：上下弹跳，幅度最大——呆萌 ball 的待机就是在蹦。 */
@@ -902,38 +1002,88 @@
   animation: pet-sleep-pink 2.6s ease-in-out infinite;
 }
 
-/* ——— 黄球：慵懒、装酷、眼皮永远半垂 ——— */
+/* ——— 黄球：慵懒、装酷、半垂眼 ———
+   实测（scan-faces-precise.mjs）：眼 = 白椭圆（16.73×9.39）+ 压在中上部
+   的红色半圆盖（平底、11.1×7.1，盖住瞳位）——不是「眼皮切平头」。
+   眼盒取两者的并集（透明、直角），白眼珠与红盖画在 ::before / ::after。
+   右眼整体比左眼低 0.8。嘴 = 白色笑口（平顶、圆底，顶线中部微沉）
+   + 右侧一枚黑豆（嘴角），多边形来自扫描线。
+   待机态瞳孔不画（参考图红盖下没有露瞳）；干活/等你时瞳珠从盖下探出。 */
 .pet[data-ball='yellow'] {
-  --eye-w: 21%;
-  --eye-h: 25%;
-  --eye-top: 26%;
-  --eye-left: 26%;
-  --eye-right: 26%;
-  --iris-w: 74%;
-  --iris-h: 74%;
-  --iris-mx: -37%;
-  --iris-my: -33%;
-  --iris: radial-gradient(circle at 42% 36%, #e8393f 0%, #cf2b32 62%);
-  /* 上眼睑：球色的一块，把虹膜上半盖住——参考图里黄球就是这副半垂眼 */
-  --lid-h: 22%;
-  --lid-color: #f1cc3d;
-  /* 张开的白嘴，右下角一小块黑（嘴角） */
-  --mouth-w: 30%;
-  --mouth-h: 14%;
-  --mouth-top: 58%;
-  --mouth-left: -11%;
-  --mouth-bg: #ffffff;
-  --mouth-radius: 90% 90% 24% 24% / 120% 120% 22% 22%;
+  --eye-w: 16.73%;
+  --eye-h: 10.17%;
+  --eye-top: 43.3%;
+  --eye-left: 29.8%;
+  --eye-right: 25.31%;
+  --eye-radius: 0;
+  --eye-bg: transparent;
+  --lid-h: 69.8%;
+  --lid-color: #ea3b26;
+  /* 瞳珠只在互动状态从红盖下探出（待机 display:none，见下）。 */
+  --iris-w: 60%;
+  --iris-h: 62%;
+  --iris-mx: -28%;
+  --iris-my: -24.75%;
+  --iris: #d63420;
+  --mouth-w: 18.95%;
+  --mouth-h: 11.2%;
+  --mouth-top: 57.5%;
+  --mouth-left: -7.6%;
+  --mouth-bg: #fcfdfc;
+  --mouth-radius: 0;
   --mouth-rot: 0deg;
+  --mouth-border: none;
   --mouth-accent: block;
-  --mouth-accent-x: 58%;
-  --mouth-accent-y: 62%;
-  --mouth-accent-w: 32%;
-  --mouth-accent-h: 32%;
-  --mouth-accent-radius: 50%;
-  --mouth-accent-bg: #1b1b1b;
-  --mouth-accent-transform: none;
+  --mouth-accent-x: 67%;
+  --mouth-accent-y: 44.2%;
+  --mouth-accent-w: 34.5%;
+  --mouth-accent-h: 29.2%;
+  --mouth-accent-radius: 55% 70% 70% 55% / 60% 70% 70% 60%;
+  --mouth-accent-bg: #281e15;
+  --mouth-accent-transform: rotate(-6deg);
   --mouth-accent-origin: center;
+  --mouth-clip: polygon(0.26% 3.12%,4.59% 3.12%,8.87% 3.12%,13.19% 3.12%,17.47% 6.79%,21.79% 10.45%,26.12% 10.45%,30.4% 10.45%,34.72% 14.11%,39.05% 14.11%,43.32% 14.11%,47.65% 14.11%,51.93% 14.11%,56.25% 14.11%,60.58% 14.11%,64.85% 14.11%,69.18% 10.45%,73.51% 6.79%,77.78% 3.12%,82.11% 3.12%,86.44% 6.79%,90.71% 3.12%,95.04% 3.12%,99.31% 6.79%,108.51% 11.84%,114.19% 25.08%,114.19% 41.44%,108.51% 54.68%,99.31% 59.73%,95.04% 70.62%,90.71% 81.61%,86.44% 88.93%,82.11% 92.5%,77.78% 96.16%,73.51% 96.16%,69.18% 96.16%,64.85% 92.5%,60.58% 92.5%,56.25% 96.16%,51.93% 96.16%,47.65% 96.16%,43.32% 92.5%,39.05% 92.5%,34.72% 88.93%,30.4% 96.16%,26.12% 96.16%,21.79% 92.5%,17.47% 88.93%,13.19% 85.27%,8.87% 77.95%,4.59% 70.62%,0.26% 59.73%,-9.57% 54.33%,-15.65% 40.17%,-15.65% 22.68%,-9.57% 8.53%);
+}
+
+/* 白眼珠：平顶下半椭圆，红盖压在上面。 */
+.pet[data-ball='yellow'] .eyeLeft::before,
+.pet[data-ball='yellow'] .eyeRight::before {
+  content: '';
+  position: absolute;
+  inset: 7.7% 0 0 0;
+  border-radius: 50%;
+  background: #fbfdfb;
+}
+
+/* 红色半圆盖：平顶、下缘圆弧，位置与尺寸来自实测。
+   z-index 压过白眼珠（实测 Chrome 里绝对定位的 ::before 会盖住 ::after，
+   不认树序），瞳珠（z:auto）依然从盖下滑出。 */
+.pet[data-ball='yellow'] .eyeLeft::after,
+.pet[data-ball='yellow'] .eyeRight::after {
+  content: '';
+  position: absolute;
+  left: 22.1%;
+  top: 0;
+  width: 66.3%;
+  height: var(--lid-h, 69.8%);
+  background: var(--lid-color);
+  border-radius: 0 0 50% 50% / 0 0 100% 100%;
+  pointer-events: none;
+  z-index: 1;
+}
+
+.pet[data-ball='yellow'] .eyeRight {
+  top: 44.1%;
+  height: 10.19%;
+}
+
+.pet[data-ball='yellow'] .eyeRight::after {
+  height: 64.8%;
+}
+
+/* 待机按参考图：红盖下不露瞳。 */
+.pet[data-ball='yellow'][data-state='resting'] .pupil {
+  display: none;
 }
 
 /* 黄·待机：慢悠悠的钟摆——连呼吸都懒得做。 */
@@ -949,7 +1099,7 @@
 
 .pet[data-ball='yellow'][data-state='working'] .eyeLeft::after,
 .pet[data-ball='yellow'][data-state='working'] .eyeRight::after {
-  height: 56%;
+  height: 86%;
 }
 
 .pet[data-ball='yellow'][data-state='working'] .mouth {
@@ -968,7 +1118,7 @@
 
 .pet[data-ball='yellow'][data-state='waiting'] .eyeLeft::after,
 .pet[data-ball='yellow'][data-state='waiting'] .eyeRight::after {
-  height: 26%;
+  height: 42%;
 }
 
 .pet[data-ball='yellow'][data-state='waiting'] .mouth {
@@ -1006,7 +1156,7 @@
 
 .pet[data-ball='yellow'][data-state='error'] .eyeLeft::after,
 .pet[data-ball='yellow'][data-state='error'] .eyeRight::after {
-  height: 72%;
+  height: 94%;
 }
 
 .pet[data-ball='yellow'][data-state='error'] .mouth {
@@ -1042,35 +1192,43 @@
   animation: pet-sleep-yellow 4.2s ease-in-out infinite;
 }
 
-/* ——— 红球：傲娇、冷面、嘴是一条带勾的横杠 ——— */
+/* ——— 红球：傲娇、冷面、嘴是带勾的横杠 ———
+   实测：眼白 15.23×17.28 @ (29.22,36.63)，右眼低 1.64；绿瞳 9.47×11.11
+   （62%×64% 眼白），左瞳偏左下（-8.1,+9.5）、右瞳近中（-2.7,+8.1）；
+   嘴 = 实心尖角（左指）+ 横杠：尖点 (37.45,64)，斜边升到 (43.6,58.9)，
+   横杠 (44,62.1)→(58.3,65.4)，clip-path 六边形来自 rows/cols 实测。 */
 .pet[data-ball='red'] {
-  --eye-w: 18%;
-  --eye-h: 22%;
-  --eye-top: 25%;
-  --eye-left: 28%;
-  --eye-right: 28%;
-  --iris-w: 46%;
-  --iris-h: 46%;
-  --iris-mx: -23%;
-  --iris-my: -23%;
-  --iris: radial-gradient(circle at 42% 36%, #2fbe5a 0%, #12a03f 62%);
-  --mouth-w: 21%;
-  --mouth-h: 5%;
-  --mouth-top: 64%;
-  --mouth-left: -9%;
-  --mouth-bg: #1b1b1b;
-  --mouth-radius: 2px;
+  --eye-w: 15.23%;
+  --eye-h: 17.28%;
+  --eye-top: 36.63%;
+  --eye-left: 29.22%;
+  --eye-right: 29.21%;
+  --iris-w: 62.2%;
+  --iris-h: 64.3%;
+  --iris: #17ab39;
+  --mouth-w: 20.9%;
+  --mouth-h: 6.6%;
+  --mouth-top: 58.85%;
+  --mouth-left: -12.55%;
+  --mouth-bg: #261613;
+  --mouth-radius: 0;
   --mouth-rot: 0deg;
-  /* 左端那个向上的小勾 */
-  --mouth-accent: block;
-  --mouth-accent-x: 0%;
-  --mouth-accent-y: -150%;
-  --mouth-accent-w: 24%;
-  --mouth-accent-h: 170%;
-  --mouth-accent-radius: 2px;
-  --mouth-accent-bg: #1b1b1b;
-  --mouth-accent-transform: rotate(-42deg);
-  --mouth-accent-origin: right bottom;
+  --mouth-border: none;
+  --mouth-accent: none;
+  --mouth-clip: polygon(0% 68.94%,29.43% 0.76%,33.25% 49.24%,99.76% 49.24%,104.4% 54.02%,107.27% 66.52%,107.27% 81.97%,104.4% 94.47%,99.76% 99.24%,1.2% 96.21%,-3.73% 89.39%,-4.31% 82.58%,-3.73% 75.76%);
+}
+
+/* 右眼低一点；左右瞳各自实测的偏移（margin 单位为眼盒宽）。 */
+.pet[data-ball='red'] .eyeRight {
+  top: 38.27%;
+}
+
+.pet[data-ball='red'] .eyeLeft .pupil {
+  margin: -27.03% 0 0 -39.24%;
+}
+
+.pet[data-ball='red'] .eyeRight .pupil {
+  margin: -26.98% 0 0 -33.79%;
 }
 
 /* 红·待机：短促点头，像在表态。 */
@@ -1134,6 +1292,11 @@
   rotate: -5deg;
 }
 
+/* 旗形嘴容不下舌头——舌头探出来会糊在脸上（实测）。 */
+.pet[data-ball='red'][data-state='celebrating'] .tongue {
+  display: none;
+}
+
 .pet[data-ball='red'][data-state='celebrating'] .body {
   animation: pet-cheer-red 0.8s cubic-bezier(0.3, 0.9, 0.4, 1) 4;
 }
@@ -1178,35 +1341,51 @@
   animation: pet-sleep-red 3s ease-in-out infinite;
 }
 
-/* ——— 绿球：暴躁、别扭、眼睛小且斗在一起 ——— */
+/* ——— 绿球：暴躁、别扭、眼睛小且斗在一起 ———
+   实测：左眼白 11.11 见方 @ (37.04,37.45)，右眼白 10.29×11.11 @ (49.38,35.8)
+   （右眼高 1.65、两眼相接）；橙瞳 6.2 / 5.5 直径，都在各自眼白的**左缘**
+   （左瞳心 (40,41)、右瞳心 (50.4,41)——右瞳整个探出眼白左缘 1.7，
+   所以绿球眼睛 overflow 放开）；
+   嘴 = 左低右高的粗折线：左段缓升、中段浅 V 沉一下、右段陡升，
+   走向 37,58.9 → 49.5,56 → 56.9,57.9 → 66,51.8 → 72.4,51.5。 */
 .pet[data-ball='green'] {
-  --eye-w: 17%;
-  --eye-h: 18%;
-  --eye-top: 29%;
-  --eye-left: 36%;
-  --eye-right: 36%;
-  --iris-w: 52%;
-  --iris-h: 52%;
-  --iris-mx: -26%;
-  --iris-my: -26%;
-  --iris: radial-gradient(circle at 42% 36%, #ffb63d 0%, #f5a623 62%);
-  /* 斜向锯齿嘴：本体是斜杠，::before 是中间那个折角 */
-  --mouth-w: 38%;
-  --mouth-h: 6%;
-  --mouth-top: 62%;
-  --mouth-left: -16%;
-  --mouth-bg: #1b1b1b;
-  --mouth-radius: 2px;
-  --mouth-rot: -14deg;
-  --mouth-accent: block;
-  --mouth-accent-x: 42%;
-  --mouth-accent-y: -160%;
-  --mouth-accent-w: 26%;
-  --mouth-accent-h: 230%;
-  --mouth-accent-radius: 2px;
-  --mouth-accent-bg: #1b1b1b;
-  --mouth-accent-transform: rotate(24deg);
-  --mouth-accent-origin: left bottom;
+  --eye-w: 11.11%;
+  --eye-h: 11.11%;
+  --eye-top: 37.45%;
+  --eye-left: 37.04%;
+  --eye-right: 40.33%;
+  --iris-w: 55.8%;
+  --iris-h: 55.8%;
+  --iris: #edab35;
+  --mouth-w: 35.7%;
+  --mouth-h: 10.1%;
+  --mouth-top: 50.1%;
+  --mouth-left: -13.1%;
+  --mouth-bg: #241a15;
+  --mouth-radius: 0;
+  --mouth-rot: 0deg;
+  --mouth-border: none;
+  --mouth-accent: none;
+  --mouth-clip: polygon(0.39% 82.23%,2.69% 79.02%,4.99% 74.8%,7.31% 73.28%,9.61% 71.76%,11.9% 69.73%,14.23% 67.7%,16.53% 65.67%,18.82% 63.64%,21.12% 61.61%,23.45% 59.57%,25.74% 57.51%,28.04% 55.46%,30.36% 53.4%,32.66% 51.36%,34.96% 50.35%,37.28% 50.35%,39.58% 50.35%,41.88% 51.87%,44.17% 54.42%,46.5% 56.99%,48.8% 60.07%,51.09% 62.62%,53.42% 64.65%,55.71% 65.16%,58.01% 61.6%,60.34% 53.44%,62.63% 43.24%,64.93% 34.58%,67.25% 27.96%,69.55% 22.86%,71.85% 19.8%,74.15% 16.76%,76.47% 12.7%,78.77% 9.65%,81.06% 9.15%,83.39% 9.15%,85.69% 6.6%,87.98% 4.54%,90.31% 4.02%,92.61% 3.01%,94.9% 2.5%,97.2% 5.18%,99.52% 8.37%,100.25% 9.21%,100.7% 11.4%,100.7% 14.12%,100.25% 16.31%,99.52% 17.15%,97.2% 19.32%,94.9% 22%,92.61% 22.51%,90.31% 23.53%,87.98% 24.05%,85.69% 26.1%,83.39% 28.65%,81.06% 28.65%,78.77% 29.16%,76.47% 32.2%,74.15% 36.26%,71.85% 39.31%,69.55% 42.36%,67.25% 47.46%,64.93% 54.08%,62.63% 62.75%,60.34% 72.95%,58.01% 81.1%,55.71% 84.67%,53.42% 84.16%,51.09% 82.13%,48.8% 79.58%,46.5% 76.5%,44.17% 73.92%,41.88% 71.37%,39.58% 69.85%,37.28% 69.85%,34.96% 69.85%,32.66% 70.87%,30.36% 72.91%,28.04% 74.96%,25.74% 77.02%,23.45% 79.07%,21.12% 81.11%,18.82% 83.14%,16.53% 85.17%,14.23% 87.2%,11.9% 89.23%,9.61% 91.26%,7.31% 92.78%,4.99% 94.31%,2.69% 93.16%,0.39% 91.01%,-0.34% 90.17%,-0.79% 87.98%,-0.79% 85.27%,-0.34% 83.07%);
+}
+
+/* 右眼更小更高；瞳珠贴各自眼白的左缘（右瞳探出眼白外）。 */
+.pet[data-ball='green'] .eyeLeft,
+.pet[data-ball='green'] .eyeRight {
+  overflow: visible;
+}
+
+.pet[data-ball='green'] .eyeRight {
+  top: 35.8%;
+  width: 10.29%;
+}
+
+.pet[data-ball='green'] .eyeLeft .pupil {
+  margin: -45.9% 0 0 -51.3%;
+}
+
+.pet[data-ball='green'] .eyeRight .pupil {
+  margin: -30.15% 0 0 -66.55%;
 }
 
 /* 绿·待机：不耐烦的轻颤。 */
@@ -1263,8 +1442,13 @@
 }
 
 .pet[data-ball='green'][data-state='celebrating'] .mouth {
-  scale: 1.12 1.24;
-  rotate: -22deg;
+  scale: 1.1 1.15;
+  rotate: -8deg;
+}
+
+/* 折线嘴同样容不下舌头；旋转也别过陡——-22° 时像一道疤（实测）。 */
+.pet[data-ball='green'][data-state='celebrating'] .tongue {
+  display: none;
 }
 
 .pet[data-ball='green'][data-state='celebrating'] .body {
@@ -1284,7 +1468,7 @@
 
 .pet[data-ball='green'][data-state='error'] .mouth {
   scale: 1.06 1.18;
-  rotate: -28deg;
+  rotate: -16deg;
 }
 
 .pet[data-ball='green'][data-state='error'] .body {
@@ -1311,40 +1495,49 @@
   animation: pet-sleep-green 2.2s ease-in-out infinite;
 }
 
-/* ——— 蓝球：理性、认真、永远戴着黄框眼镜 ——— */
+/* ——— 蓝球：理性、认真、永远戴着黄框眼镜 ———
+   实测：镜框外盒 23.1×23.7 @ x27.2 / x52.7（整个眼镜在脸上偏右 1.5，
+   参考图如此），条厚 ≈2.1px@104；镜片内孔 18.5 见方（眼盒=内孔，
+   框用 box-shadow 环画在盒外）；小白眼 7.8×9.05 / 6.6×8.64 都偏脸中侧，
+   黑瞳 4.94 直径在小白眼内；鼻梁 5.6×4.8 @ (48.8,36.5)，接两框内缘；
+   V 嘴 11.7×6.5 @ (45.9,56.4)，顶点 (51.7,62.6)，clip-path 九点实测。 */
 .pet[data-ball='blue'] {
-  --eye-w: 32%;
-  --eye-h: 27%;
-  --eye-top: 21%;
-  --eye-left: 16%;
-  --eye-right: 16%;
-  --eye-radius: 26%;
-  --iris-w: 30%;
-  --iris-h: 30%;
-  --iris-mx: -15%;
-  --iris-my: -15%;
-  --iris: #16181c;
-  /* 眼镜：框画在眼睛的 ::before 上，鼻子中间的梁画在 .face::before 上 */
+  --eye-w: 18.5%;
+  --eye-h: 18.5%;
+  --eye-top: 33.6%;
+  --eye-left: 29.7%;
+  --eye-right: 25.9%;
+  --eye-radius: 9%;
+  --eye-bg: transparent;
+  --iris-w: 26.7%;
+  --iris-h: 26.7%;
+  --iris: #20191c;
   --glasses-color: #eccd3f;
-  --glasses-width: 5px;
-  --glasses-radius: 26%;
-  /* v 形嘴：本体是左斜笔，::before 是右斜笔 */
-  --mouth-w: 9%;
-  --mouth-h: 4%;
-  --mouth-top: 58%;
-  --mouth-left: -8%;
-  --mouth-bg: #16181c;
-  --mouth-radius: 2px;
-  --mouth-rot: 32deg;
-  --mouth-accent: block;
-  --mouth-accent-x: 96%;
-  --mouth-accent-y: -30%;
-  --mouth-accent-w: 100%;
-  --mouth-accent-h: 110%;
-  --mouth-accent-radius: 2px;
-  --mouth-accent-bg: #16181c;
-  --mouth-accent-transform: rotate(-58deg);
-  --mouth-accent-origin: left center;
+  --glasses-width: 2cqw; /* 1cqw = 宠物宽的 1%（=脸宽的 0.8%）；2cqw≈2.1px@104 */
+  --glasses-radius: 9%;
+  --mouth-w: 11.7%;
+  --mouth-h: 6.5%;
+  --mouth-top: 56.4%;
+  --mouth-left: -4.1%;
+  --mouth-bg: #282c2f;
+  --mouth-radius: 0;
+  --mouth-rot: 0deg;
+  --mouth-border: none;
+  --mouth-accent: none;
+  --mouth-clip: polygon(12.82% 7.69%,25.64% 15.38%,49.57% 95.38%,72.65% 20%,85.47% 16.92%,91.45% 30.77%,78.63% 52.31%,49.57% 43.08%,18.8% 40%);
+}
+
+/* 右镜片内孔略宽（18.9）；两只黑瞳各自实测的偏移。 */
+.pet[data-ball='blue'] .eyeRight {
+  width: 18.9%;
+}
+
+.pet[data-ball='blue'] .eyeLeft .pupil {
+  margin: -19.15% 0 0 18.2%;
+}
+
+.pet[data-ball='blue'] .eyeRight .pupil {
+  margin: -17.95% 0 0 -44.55%;
 }
 
 /* 蓝·待机：匀速呼吸，绝对规律——像一台仪器的指示灯。 */
@@ -1419,10 +1612,29 @@
   animation: pet-error-blue 0.7s ease-out 1;
 }
 
-/* 蓝·打盹：眼镜后闭眼、v 嘴放松。 */
+/* 蓝·打盹：眼镜不跟着眼睛压扁——眼镜是身份不是表情。镜框保持原形，
+   白眼珠收起，镜片里画一条闭眼线（位置偏低，像眼皮合上）。 */
 .pet[data-ball='blue'][data-state='sleeping'] .eyeLeft,
 .pet[data-ball='blue'][data-state='sleeping'] .eyeRight {
-  scale: 1 0.24;
+  scale: 1 1;
+}
+
+.pet[data-ball='blue'][data-state='sleeping'] .eyeLeft::before,
+.pet[data-ball='blue'][data-state='sleeping'] .eyeRight::before {
+  scale: 1 0.08;
+  opacity: 0;
+}
+
+.pet[data-ball='blue'][data-state='sleeping'] .eyeLeft::after,
+.pet[data-ball='blue'][data-state='sleeping'] .eyeRight::after {
+  content: '';
+  position: absolute;
+  left: 19%;
+  top: 56%;
+  width: 62%;
+  height: 8%;
+  border-radius: 999px;
+  background: #20191c;
 }
 
 .pet[data-ball='blue'][data-state='sleeping'] .pupil {
