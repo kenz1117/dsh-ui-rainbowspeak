@@ -43,6 +43,7 @@ describe('client apply', () => {
     document.documentElement.removeAttribute('data-rainbow-palette')
     document.documentElement.removeAttribute('data-rainbow-side')
     document.documentElement.removeAttribute('data-rainbow-breathe')
+    document.documentElement.removeAttribute('data-rainbow-glow')
     document.documentElement.removeAttribute('data-rainbow-state')
     document.documentElement.removeAttribute('style')
     localStorage.clear()
@@ -85,11 +86,18 @@ describe('client apply', () => {
     expect(css).toContain(':focus-within::before')
     // P2：呼吸明暗段。
     expect(css).toContain('html[data-rainbow-breathe]')
+    // P3：柔光层段（默认隐藏 + 开关点亮 + 几何常量 + 条带镜像）。
+    expect(css).toContain('.rs-glow')
+    expect(css).toContain('.rs-glow-band')
+    expect(css).toContain('html[data-rainbow-glow]')
+    expect(css).toContain('--dsh-rainbow-glow-extent')
+    expect(css).toContain('--dsh-rainbow-glow-blur')
+    expect(css).toContain('--dsh-rainbow-glow-opacity')
     // 系统偏好降级。
     expect(css).toContain('prefers-reduced-motion')
   })
 
-  it('旋转图层：注入载体层与色彩层，卡片挂上 rs-has-ring，卸载时清干净', () => {
+  it('旋转图层与柔光层：注入载体/色彩/柔光层，柔光垫在细线之下，卸载时清干净', () => {
     const ctx = fakeCtx()
     const card = document.createElement('div')
     card.setAttribute('data-composer-card', '')
@@ -97,16 +105,25 @@ describe('client apply', () => {
     apply(ctx)
     const ring = card.querySelector('.rs-ring')
     const conic = card.querySelector('.rs-conic')
+    const glow = card.querySelector('.rs-glow')
+    const band = card.querySelector('.rs-glow-band')
     expect(ring).not.toBeNull()
     expect(conic).not.toBeNull()
     expect(conic?.parentElement?.className).toContain('rs-ring')
+    expect(glow).not.toBeNull()
+    expect(band?.parentElement).toBe(glow)
     expect(card.classList.contains('rs-has-ring')).toBe(true)
+    // 柔光层先注入：细线后画，正好压住光晕内缘的硬切。
+    expect(card.children[0]).toBe(glow)
+    expect(card.children[1]).toBe(ring)
     // 重复注入不应叠出第二层。
     apply(ctx)
     expect(card.querySelectorAll('.rs-ring').length).toBe(1)
+    expect(card.querySelectorAll('.rs-glow').length).toBe(1)
     // 卸载：注入的 DOM 与标记都要清掉。
     disposeAll(ctx)
     expect(card.querySelector('.rs-ring')).toBeNull()
+    expect(card.querySelector('.rs-glow')).toBeNull()
     expect(card.classList.contains('rs-has-ring')).toBe(false)
     card.remove()
   })
@@ -119,16 +136,21 @@ describe('client apply', () => {
     expect(root.getAttribute('style')).toContain('--dsh-rainbow-period: 4s')
     expect(root.getAttribute('style')).toContain('--dsh-rainbow-width: 2px')
     expect(root.dataset.rainbowOff).toBeUndefined()
+    expect(root.dataset.rainbowGlow).toBeUndefined()
   })
 
   it('插件卸载清理：样式表标签与 <html> 标记/变量全部移除', () => {
     const ctx = fakeCtx()
+    // 预置柔光开启：apply 下发 data-rainbow-glow，卸载时必须一并清掉。
+    localStorage.setItem('dsh-ui-rainbowspeak.prefs', JSON.stringify({ glow: true }))
     apply(ctx)
     expect(document.head.querySelector('style[data-plugin]')).not.toBeNull()
+    expect(document.documentElement.dataset.rainbowGlow).toBe('1')
     disposeAll(ctx)
     expect(document.head.querySelector('style[data-plugin]')).toBeNull()
     const root = document.documentElement
     expect(root.dataset.rainbowPalette).toBeUndefined()
+    expect(root.dataset.rainbowGlow).toBeUndefined()
     expect(root.getAttribute('style')).not.toContain('--dsh-rainbow-period')
   })
 })

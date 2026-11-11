@@ -29,6 +29,8 @@ export type RainbowKey =
   | 'sideBottom'
   | 'reverse'
   | 'breathe'
+  | 'glow'
+  | 'glowDesc'
   | 'stateNote'
   | 'reset'
   | 'petNav'
@@ -114,6 +116,8 @@ export const zh: Record<RainbowKey, string> = {
   sideBottom: '仅底边',
   reverse: '反向流动',
   breathe: '呼吸明暗',
+  glow: '柔光外溢',
+  glowDesc: '细线外再漾开一圈静态软光晕，暗色主题下过渡更柔和',
   stateNote: '会话运行时自动加速，等待审批时琥珀提醒，出错时红色警示',
   reset: '恢复默认',
   petNav: '桌面宠物',
@@ -200,6 +204,8 @@ export const en: Record<RainbowKey, string> = {
   sideBottom: 'Bottom only',
   reverse: 'Reverse flow',
   breathe: 'Breathing',
+  glow: 'Soft glow',
+  glowDesc: 'A static halo spilling past the ring — softer transitions in dark themes',
   stateNote: 'Speeds up while running, amber while awaiting approval, red on errors',
   reset: 'Reset to defaults',
   petNav: 'Desktop pet',

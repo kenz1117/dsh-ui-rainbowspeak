@@ -14,6 +14,8 @@
  *   渐变只画一次，流动交给合成器，不再每帧重绘整张卡片；
  * - `::before` 保留为静态兜底：图层还没注入时（宿主卡片晚出现）至少有一圈
  *   彩虹描边，卡片挂上 `rs-has-ring` 后兜底退场；
+ * - 柔光层（`rs-glow > rs-glow-band`，默认隐藏）：细线外一圈静态软光晕，
+ *   暗色主题下让硬边过渡更自然；几何与性能推导见 rainbowCss 模板注释；
  * - 会话状态桥把 running/promptError/lastAgentError 与审批等待投影为
  *   `data-rainbow-state`（error > attention > running 优先级），运行中自动
  *   加速、审批等待琥珀脉冲、出错切红色警示；回合完成瞬间打
@@ -73,9 +75,12 @@ declare module '@deepseek-ai/dsh-client-ui-slots' {
  * 静态兜底仍然保留在 `::before` 上：图层还没注入时（宿主卡片晚出现、或注入
  * 失败）至少有一圈静态彩虹描边。卡片上挂了 `rs-has-ring` 后兜底退场，
  * 避免两层色带叠加。
+ *
+ * 导出供预览脚本使用（`scripts/preview-glow.mjs` 经构建产物 lib/client.js
+ * 取这份真身样式生成预览页，保证预览与宿主渲染一字不差）。
  */
-function rainbowCss(): string {
-  // 配色方案：静态兜底（::before）与旋转图层（.rs-conic）各要一份色标。
+export function rainbowCss(): string {
+  // 配色方案：静态兜底（::before）、旋转图层（.rs-conic）与柔光条带（.rs-glow-band）各要一份色标。
   const paletteBlocks = Object.entries(PALETTE_STOPS)
     .map(([name, stops]) => `
 /* 配色方案：${name}。 */
@@ -83,7 +88,8 @@ html[data-rainbow-palette="${name}"] [data-composer-card]::before {
   background: conic-gradient(from 0deg, ${stops});
 }
 
-html[data-rainbow-palette="${name}"] [data-composer-card] .rs-conic {
+html[data-rainbow-palette="${name}"] [data-composer-card] .rs-conic,
+html[data-rainbow-palette="${name}"] [data-composer-card] .rs-glow-band {
   background: conic-gradient(from 0deg, ${stops});
 }`)
     .join('\n')
@@ -93,6 +99,12 @@ html[data-rainbow-palette="${name}"] [data-composer-card] .rs-conic {
   --dsh-rainbow-width: 2px;
   --dsh-rainbow-period: 4s;
   --dsh-rainbow-direction: normal;
+  /* 柔光层几何（调参入口，非用户偏好）：extent = 光晕外扩距离，
+     blur = 模糊半径（≈外缘衰减 2.8σ，须显著小于 extent），
+     opacity = 光晕相对细线的强度。 */
+  --dsh-rainbow-glow-extent: 14px;
+  --dsh-rainbow-glow-blur: 5px;
+  --dsh-rainbow-glow-opacity: 0.6;
 }
 
 /* 宿主输入框卡片（ui-conversation InputBar 的稳定 data 锚点）。 */
@@ -159,6 +171,53 @@ html[data-rainbow-palette="${name}"] [data-composer-card] .rs-conic {
   to { transform: rotate(360deg); }
 }
 
+/* ——— 柔光层（静态光晕，默认隐藏，<html data-rainbow-glow> 点亮）———
+   外层 .rs-glow 管 blur 与挖洞，内层 .rs-glow-band 是一条贴着卡片内缘、
+   比细线宽 2px 的锥形渐变条带。分工缘于渲染管线：filter 先于 mask 执行，
+   blur 与条带遮罩同层会被 mask 切回硬边，故拆成父子两层。可见光晕的
+   推导：条带画在卡片内缘 → 父层 blur 把颜色推过卡片边界 → 父层挖洞
+   mask（content-box = 卡片区域）只放行卡片以外的部分。内缘的硬切被
+   细线盖住，外缘切边在 extent 处而 blur 衰减已尽，两头都不可见。
+   条带刻意不自转：旋转内容上的 blur 必须逐帧重跑，静态条带模糊一次
+   后由合成器缓存，稳态零逐帧成本。 */
+[data-composer-card] .rs-glow {
+  display: none;
+}
+
+html[data-rainbow-glow] [data-composer-card] .rs-glow {
+  display: block;
+  position: absolute;
+  /* 外扩 extent 给光晕留活动空间；padding 同值让 content-box 恰好回到卡片区域。 */
+  inset: calc(-1 * var(--dsh-rainbow-glow-extent));
+  padding: var(--dsh-rainbow-glow-extent);
+  border-radius: inherit;
+  filter: blur(var(--dsh-rainbow-glow-blur));
+  /* 挖洞：卡片区域（content-box）抠掉，输入区不落一丝光。 */
+  -webkit-mask: linear-gradient(#fff 0 0) content-box, linear-gradient(#fff 0 0);
+  -webkit-mask-composite: xor;
+  mask: linear-gradient(#fff 0 0) content-box, linear-gradient(#fff 0 0);
+  mask-composite: exclude;
+  pointer-events: none;
+}
+
+[data-composer-card] .rs-glow-band {
+  position: absolute;
+  /* inset extent 从 .rs-glow 的外扩框回到卡片边界，条带与细线同位。 */
+  inset: var(--dsh-rainbow-glow-extent);
+  border-radius: inherit;
+  /* 比细线宽 2px：blur 会侵蚀条带边缘，加宽一点补回被侵蚀的亮度。 */
+  padding: calc(var(--dsh-rainbow-width) + 2px);
+  -webkit-mask: linear-gradient(#fff 0 0) content-box, linear-gradient(#fff 0 0);
+  -webkit-mask-composite: xor;
+  mask: linear-gradient(#fff 0 0) content-box, linear-gradient(#fff 0 0);
+  mask-composite: exclude;
+  /* 强度落在条带上而不是 .rs-glow 上：呼吸/脉冲动画动的是 .rs-glow 的
+     opacity，放同层会被动画的 opacity 覆盖成 1。 */
+  opacity: var(--dsh-rainbow-glow-opacity);
+  background: conic-gradient(from 0deg, ${PALETTE_STOPS.rainbow});
+  pointer-events: none;
+}
+
 ${paletteBlocks}
 
 /* 显示位置：仅顶边（mask 只保留顶部条带，颜色仍是环上对应弧段，随角度流动）。 */
@@ -168,11 +227,23 @@ html[data-rainbow-side="top"] [data-composer-card] .rs-ring {
   mask: linear-gradient(180deg, #fff 0 var(--dsh-rainbow-width), transparent var(--dsh-rainbow-width));
 }
 
+/* 仅顶边时柔光条带同步收成顶部条带（高度比细线多 2px，补 blur 侵蚀）。 */
+html[data-rainbow-side="top"] [data-composer-card] .rs-glow-band {
+  -webkit-mask: linear-gradient(180deg, #fff 0 calc(var(--dsh-rainbow-width) + 2px), transparent calc(var(--dsh-rainbow-width) + 2px));
+  mask: linear-gradient(180deg, #fff 0 calc(var(--dsh-rainbow-width) + 2px), transparent calc(var(--dsh-rainbow-width) + 2px));
+}
+
 /* 显示位置：仅底边。 */
 html[data-rainbow-side="bottom"] [data-composer-card]::before,
 html[data-rainbow-side="bottom"] [data-composer-card] .rs-ring {
   -webkit-mask: linear-gradient(180deg, transparent calc(100% - var(--dsh-rainbow-width)), #fff calc(100% - var(--dsh-rainbow-width)));
   mask: linear-gradient(180deg, transparent calc(100% - var(--dsh-rainbow-width)), #fff calc(100% - var(--dsh-rainbow-width)));
+}
+
+/* 仅底边时柔光条带同步收成底部条带。 */
+html[data-rainbow-side="bottom"] [data-composer-card] .rs-glow-band {
+  -webkit-mask: linear-gradient(180deg, transparent calc(100% - var(--dsh-rainbow-width) - 2px), #fff calc(100% - var(--dsh-rainbow-width) - 2px));
+  mask: linear-gradient(180deg, transparent calc(100% - var(--dsh-rainbow-width) - 2px), #fff calc(100% - var(--dsh-rainbow-width) - 2px));
 }
 
 /* 呼吸明暗：叠加在载体层上（opacity 走合成器）。 */
@@ -189,6 +260,11 @@ html[data-rainbow-breathe] [data-composer-card] .rs-ring {
   animation: dsh-rainbow-breathe calc(var(--dsh-rainbow-period) * 2) ease-in-out infinite;
 }
 
+/* 呼吸同频作用在柔光层上：opacity 动画叠加在条带的静态强度之上。 */
+html[data-rainbow-breathe] [data-composer-card] .rs-glow {
+  animation: dsh-rainbow-breathe calc(var(--dsh-rainbow-period) * 2) ease-in-out infinite;
+}
+
 /* 会话运行中：流动加速（状态桥把 running 投影到 <html data-rainbow-state>）。 */
 html[data-rainbow-state="running"] [data-composer-card] {
   --dsh-rainbow-period: 1.2s;
@@ -197,7 +273,8 @@ html[data-rainbow-state="running"] [data-composer-card] {
 /* 审批等待：琥珀色配色 + 缓慢脉冲（pendingInteraction 由状态桥投影）。
    配色必须跟着状态走——颜色在这套产品里是语义（琥珀 = 需要你确认）。 */
 html[data-rainbow-state="attention"] [data-composer-card]::before,
-html[data-rainbow-state="attention"] [data-composer-card] .rs-conic {
+html[data-rainbow-state="attention"] [data-composer-card] .rs-conic,
+html[data-rainbow-state="attention"] [data-composer-card] .rs-glow-band {
   background: conic-gradient(from 0deg, #f59e0b, #fbbf24, #fcd34d, #f59e0b, #d97706, #f59e0b);
 }
 
@@ -207,7 +284,8 @@ html[data-rainbow-state="attention"] [data-composer-card] .rs-conic {
 
 /* 会话出错：红色警示配色 + 快速脉冲。 */
 html[data-rainbow-state="error"] [data-composer-card]::before,
-html[data-rainbow-state="error"] [data-composer-card] .rs-conic {
+html[data-rainbow-state="error"] [data-composer-card] .rs-conic,
+html[data-rainbow-state="error"] [data-composer-card] .rs-glow-band {
   background: conic-gradient(from 0deg, #ef4444, #f87171, #fca5a5, #ef4444, #dc2626, #ef4444);
 }
 
@@ -225,6 +303,15 @@ html[data-rainbow-state="attention"] [data-composer-card] .rs-ring {
 }
 
 html[data-rainbow-state="error"] [data-composer-card] .rs-ring {
+  animation: dsh-rainbow-error-pulse 1.2s ease-in-out infinite;
+}
+
+/* 状态脉冲同步到柔光层（opacity 动画，与条带强度相乘）。 */
+html[data-rainbow-state="attention"] [data-composer-card] .rs-glow {
+  animation: dsh-rainbow-error-pulse 2s ease-in-out infinite;
+}
+
+html[data-rainbow-state="error"] [data-composer-card] .rs-glow {
   animation: dsh-rainbow-error-pulse 1.2s ease-in-out infinite;
 }
 
@@ -249,26 +336,36 @@ html[data-rainbow-celebrate] [data-composer-card] .rs-ring {
   animation: dsh-rainbow-celebrate 0.9s ease-out 1;
 }
 
-/* 输入框聚焦时环更亮更饱和，失焦平滑回落。 */
+/* 庆祝闪动与细线同帧落在柔光层上。 */
+html[data-rainbow-celebrate] [data-composer-card] .rs-glow {
+  animation: dsh-rainbow-celebrate 0.9s ease-out 1;
+}
+
+/* 输入框聚焦时环更亮更饱和，失焦平滑回落。
+   柔光层的提亮加在 .rs-glow-band（子层）上——.rs-glow 自带 blur filter，
+   在它上面再设 filter 会把 blur 顶掉，光晕瞬间变硬边。 */
 [data-composer-card]:focus-within::before,
-[data-composer-card]:focus-within .rs-ring {
+[data-composer-card]:focus-within .rs-ring,
+[data-composer-card]:focus-within .rs-glow-band {
   filter: brightness(1.25) saturate(1.15);
 }
 
-/* 总开关关闭：隐藏伪元素与旋转图层（偏好服务在 <html data-rainbow-off> 上打标记）。 */
+/* 总开关关闭：隐藏伪元素、旋转图层与柔光层（偏好服务在 <html data-rainbow-off> 上打标记）。 */
 html[data-rainbow-off] [data-composer-card]::before,
-html[data-rainbow-off] [data-composer-card] .rs-ring {
+html[data-rainbow-off] [data-composer-card] .rs-ring,
+html[data-rainbow-off] [data-composer-card] .rs-glow {
   display: none;
 }
 
-/* 用户开启"减弱动态效果"时停用全部动画，保留静态描边。 */
+/* 用户开启"减弱动态效果"时停用全部动画，保留静态描边与静态光晕。 */
 @media (prefers-reduced-motion: reduce) {
   [data-composer-card]::before {
     animation: none;
   }
 
   [data-composer-card] .rs-conic,
-  [data-composer-card] .rs-ring {
+  [data-composer-card] .rs-ring,
+  [data-composer-card] .rs-glow {
     animation: none !important;
   }
 }
@@ -279,7 +376,7 @@ html[data-rainbow-off] [data-composer-card] .rs-ring {
 const PLUGIN_ID = '@kenz1117/dsh-ui-rainbowspeak'
 
 /** 构建标识：排查「宿主跑的是旧包」时，在宿主控制台按这行确认加载的是哪一版。 */
-const CLIENT_BUILD = '2026-10-28.6 (css candy hearts)'
+const CLIENT_BUILD = '2026-11-11.1 (soft glow)'
 
 /** 必需服务：slots 渲染接线 + locale 词典注册。 */
 export const inject = ['slots', 'locale']
@@ -325,6 +422,7 @@ function applyInner(ctx: Context): void {
       delete root.dataset.rainbowPalette
       delete root.dataset.rainbowSide
       delete root.dataset.rainbowBreathe
+      delete root.dataset.rainbowGlow
       root.style.removeProperty('--dsh-rainbow-period')
       root.style.removeProperty('--dsh-rainbow-width')
       root.style.removeProperty('--dsh-rainbow-direction')

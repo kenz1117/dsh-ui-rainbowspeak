@@ -10,6 +10,7 @@ afterEach(() => {
   document.documentElement.removeAttribute('data-rainbow-palette')
   document.documentElement.removeAttribute('data-rainbow-side')
   document.documentElement.removeAttribute('data-rainbow-breathe')
+  document.documentElement.removeAttribute('data-rainbow-glow')
   document.documentElement.removeAttribute('data-pet-off')
   document.documentElement.removeAttribute('data-pet-scope')
   document.documentElement.removeAttribute('style')
@@ -19,6 +20,8 @@ describe('clampPrefs', () => {
   it('畸形输入全部回落默认', () => {
     expect(clampPrefs(undefined)).toEqual({ ...DEFAULT_PREFS })
     expect(clampPrefs({ enabled: 'yes', periodSec: 'fast', palette: 'neon' })).toEqual({ ...DEFAULT_PREFS })
+    expect(clampPrefs({ glow: 'sure' }).glow).toBe(false)
+    expect(clampPrefs({ glow: true }).glow).toBe(true)
   })
 
   it('数值越界夹紧到区间，枚举非法回落默认', () => {
@@ -81,22 +84,24 @@ describe('loadPrefs / savePrefs', () => {
 
 describe('applyPrefs', () => {
   it('布尔/枚举写 data 属性、数值写 CSS 变量、反向写 direction', () => {
-    applyPrefs({ ...DEFAULT_PREFS, enabled: false, periodSec: 2, widthPx: 5, palette: 'ocean', reverse: true, side: 'top', breathe: true })
+    applyPrefs({ ...DEFAULT_PREFS, enabled: false, periodSec: 2, widthPx: 5, palette: 'ocean', reverse: true, side: 'top', breathe: true, glow: true })
     const root = document.documentElement
     expect(root.dataset.rainbowOff).toBe('1')
     expect(root.dataset.rainbowPalette).toBe('ocean')
     expect(root.dataset.rainbowSide).toBe('top')
     expect(root.dataset.rainbowBreathe).toBe('1')
+    expect(root.dataset.rainbowGlow).toBe('1')
     const style = root.getAttribute('style') ?? ''
     expect(style).toContain('--dsh-rainbow-period: 2s')
     expect(style).toContain('--dsh-rainbow-width: 5px')
     expect(style).toContain('--dsh-rainbow-direction: reverse')
   })
 
-  it('enabled/breathe 关闭时不留属性（开关只经属性存在性表达）', () => {
-    applyPrefs({ ...DEFAULT_PREFS, enabled: true, breathe: false })
+  it('enabled/breathe/glow 关闭时不留属性（开关只经属性存在性表达）', () => {
+    applyPrefs({ ...DEFAULT_PREFS, enabled: true, breathe: false, glow: false })
     expect(document.documentElement.dataset.rainbowOff).toBeUndefined()
     expect(document.documentElement.dataset.rainbowBreathe).toBeUndefined()
+    expect(document.documentElement.dataset.rainbowGlow).toBeUndefined()
   })
 
   it('桌宠偏好下发为 data-pet-* 与尺寸变量', () => {

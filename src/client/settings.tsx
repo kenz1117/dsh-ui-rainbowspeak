@@ -1,5 +1,5 @@
 /**
- * 「彩虹边框」设置面板：总开关、流速/宽度滑杆、配色与位置选择、反向/呼吸开关。
+ * 「彩虹边框」设置面板：总开关、流速/宽度滑杆、配色与位置选择、反向/呼吸/柔光开关。
  * 偏好读写经 preferences（localStorage 持久化 + `<html>` 实时下发），
  * 文案经宿主 locale 词典（zh/en），语言切换自动重渲染。
  * @module @kenz1117/dsh-ui-rainbowspeak/client/settings
@@ -128,6 +128,18 @@ export function RainbowSettingsSection({ t }: PropsLocale<typeof NS>): React.Rea
             />
             <span className={styles.value}>{prefs.widthPx} {t('unitPx')}</span>
           </div>
+        </div>
+
+        <div className={styles.row}>
+          <div className={styles.rowText}>
+            <span className={styles.label}>{t('glow')}</span>
+            <span className={styles.desc}>{t('glowDesc')}</span>
+          </div>
+          <Switch
+            checked={prefs.glow}
+            label={t('glow')}
+            onChange={(next) => { update(prefs, { glow: next }, commit) }}
+          />
         </div>
 
         <div className={styles.stackRow}>

@@ -41,6 +41,8 @@ export interface RainbowPrefs {
   side: RainbowSide
   /** 呼吸明暗叠加动画。 */
   breathe: boolean
+  /** 柔光外溢：细线外再叠一层静态软光晕（暗色主题下硬边过渡更自然）。 */
+  glow: boolean
   /** 桌宠总开关。 */
   petEnabled: boolean
   /** 桌宠关注范围：全部会话，还是只看当前会话。 */
@@ -69,6 +71,7 @@ export const DEFAULT_PREFS: Readonly<RainbowPrefs> = Object.freeze({
   reverse: false,
   side: 'all',
   breathe: false,
+  glow: false,
   petEnabled: true,
   petScope: 'all',
   petScale: 1,
@@ -127,6 +130,7 @@ export function clampPrefs(raw: unknown): RainbowPrefs {
       ? source.side as RainbowSide
       : DEFAULT_PREFS.side,
     breathe: typeof source.breathe === 'boolean' ? source.breathe : DEFAULT_PREFS.breathe,
+    glow: typeof source.glow === 'boolean' ? source.glow : DEFAULT_PREFS.glow,
     petEnabled: typeof source.petEnabled === 'boolean' ? source.petEnabled : DEFAULT_PREFS.petEnabled,
     petScope: PET_SCOPES.includes(source.petScope as PetScope)
       ? source.petScope as PetScope
@@ -183,6 +187,8 @@ export function applyPrefs(prefs: RainbowPrefs): void {
   root.dataset.rainbowSide = prefs.side
   if (prefs.breathe) root.dataset.rainbowBreathe = '1'
   else delete root.dataset.rainbowBreathe
+  if (prefs.glow) root.dataset.rainbowGlow = '1'
+  else delete root.dataset.rainbowGlow
   root.style.setProperty('--dsh-rainbow-period', `${prefs.periodSec}s`)
   root.style.setProperty('--dsh-rainbow-width', `${prefs.widthPx}px`)
   root.style.setProperty('--dsh-rainbow-direction', prefs.reverse ? 'reverse' : 'normal')

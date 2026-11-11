@@ -75,12 +75,13 @@
 ## 🌈 功能
 
 - **彩虹跑马灯边框**：输入框卡片四周流动彩带，由旋转图层驱动——渐变只画一次再交给合成器转，**每帧重绘次数实测 360 → 0**。
+- **柔光外溢**（可选）：细线外再漾开一圈静态软光晕，暗色主题下硬边过渡更自然。光晕层刻意不自转——旋转内容上的 blur 必须逐帧重跑，静态光晕模糊一次后由合成器缓存，**稳态零逐帧成本**；随配色/状态/位置/呼吸全套联动（[#1](https://github.com/kenz1117/dsh-ui-rainbowspeak/issues/1)）。
 - **桌面宠物「小虹」**：落在 `shell.overlay` 浮动层，可拖拽、位置持久化；纯 CSS 几何临摹的吧唧球简笔风，**无任何外部素材**，没有第三方形象的授权问题。
 - **五个可选角色**（右键菜单或设置面板切换）：球色是身份、表情随状态变化，五套基准脸 + 25 组专属关键帧（待机/干活/庆祝/出错/打盹 × 五角色），动作语言互不相同。
 - **互动细节**：戳一下果冻余振回弹、头顶飘糖果心（2-3 颗、连戳自动节流）、拖拽惯性摆动、瞳孔随指针滑动 + 随机扫视 + 视线倾斜。
 - **权威回合边界**：宿主半经 Typert 贡献一条只读事件流（`remote.rainbowPet/watch`），浏览器半逐帧用同一份 Zod schema 校验后再采信；断号即重连，绝不拿半截状态糊弄用户。
 - **宿主样式加固**：桌宠的圆形（球体/眼睛/瞳珠/命中区/光晕）全部 `longhand + !important` 钉死——宿主的全局 `button span` 规则改不动它；镜框线宽用容器查询单位随体型缩放，旧引擎自动回退固定线宽。
-- **设置面板**（`Settings` → `Rainbow border`）：启用/禁用、流速、环宽、配色、位置、反向流动、呼吸亮度；**桌面宠物**分组：启用、角色（五选一）、关注范围、动画强度（全量/轻柔/关）、大小（0.6–1.6×）。全部偏好持久化在 `localStorage`，即时生效。
+- **设置面板**（`Settings` → `Rainbow border`）：启用/禁用、流速、环宽、配色、位置、反向流动、呼吸亮度、柔光外溢；**桌面宠物**分组：启用、角色（五选一）、关注范围、动画强度（全量/轻柔/关）、大小（0.6–1.6×）。全部偏好持久化在 `localStorage`，即时生效。
 
   ![设置面板：七种配色、流速、环宽与位置](assets/02-settings-rainbow.png)
 
@@ -100,6 +101,7 @@
 
 - **会话状态感知**：agent 运行中环加速；审批/ask-user 待处理琥珀色慢脉冲；出错红色快脉冲；一轮完成播放庆祝闪光。优先级：错误 > 提醒 > 运行。
 - **聚焦增亮**：输入框聚焦时环增亮增饱和，失焦缓退。
+- **柔光外溢**：设置面板独立开关（默认关）。实现上 blur 与挖洞 mask 在父层 `.rs-glow`、条带遮罩在子层 `.rs-glow-band`——渲染管线里 filter 先于 mask，同层会被切回硬边；光晕颜色随七种配色与会话状态色同步，`prefers-reduced-motion` 下保留静态光晕。
 - **无障碍**：遵循 `prefers-reduced-motion`（动画禁用、保留静态环与表情）；设置控件带本地化标签与 aria 属性。
 - **中英双语**：文案经宿主 locale 注册表下发，跟随宿主语言设置。
 
@@ -137,6 +139,7 @@ dsh plugin add @kenz1117/dsh-ui-rainbowspeak
 
 - 插件在 apply 时挂载单张 `<style data-plugin>` 样式表，dispose 时移除（effect 生命周期）。
 - 输入框卡片的 `::before` 绘制 `conic-gradient`，`mask` 合成只留边缘环带；色彩层是一张正方形锥形渐变绕中心自转 360°——不需要 `@property` 注册插值角度。
+- 柔光层是双层结构：外层 `.rs-glow`（`blur` + 挖洞 mask，只放行卡片以外）套内层 `.rs-glow-band`（贴卡片内缘、比细线宽 2px 的静态条带）——blur 把条带颜色推出卡片边缘成软光，内缘硬切被细线盖住，光晕自遮罩一次成型、稳态零重绘。
 - 用户偏好与会话状态投影到 `<html>` 的 `data-rainbow-*` 属性与内联 CSS 变量，每个开关即时生效、无需重建样式表。
 - 桌宠**宿主半**提供只读服务 `rainbowPet`：监听 `turn/start` / `turn/end`，只投影边界元数据；**浏览器半**经 `ctx.remote.$mount()` 消费，逐帧 Zod 校验、帧号连续性检查、断号退避重连。
 - 桌宠形象全部是纯 CSS 几何（无图片/无 canvas）：嘴形是参考图扫描线生成的 `clip-path` 多边形，动画只走 `scale` / `translate` / `rotate` 合成属性，**每帧重绘为 0**；换状态不触发重排。
@@ -151,6 +154,8 @@ pnpm typecheck      # tsc --noEmit
 pnpm bundle         # tsdown: lib/index.js + lib/remote.js + lib/typert.host.js（node 半边）+ lib/client.js（浏览器 IIFE）
 pnpm preview        # 生成两页预览：pet-states.html（5 角色 × 6 状态矩阵）
                     #            pet-client-sim.html（客户端条件模拟：宿主规则 + 指针跟随 + 三档尺寸）
+pnpm preview:glow   # 重建 bundle 后生成 glow.html（柔光调参台：暗/浅舞台 + 开关/配色/状态/宽度矩阵，
+                    #            样式取自构建产物 lib/client.js 的 rainbowCss，预览与宿主一字不差）
 pnpm bench:anim     # 动画性能实测台：Paint / 样式重算 / 布局指标
 pnpm bench:pet-visual      # 六状态视觉回归（逐像素）
 ```

@@ -1,7 +1,7 @@
 {
   "name": "@kenz1117/dsh-ui-rainbowspeak",
   "description": "RainbowSpeak (虹语) — rainbow marquee border for the DeepSeek Harness chat composer plus 小虹, a window-resident ba-ji-ball companion pet (five playable characters) driven by the host's authoritative turn boundaries.",
-  "version": "0.5.0",
+  "version": "0.6.0",
   "keywords": [
     "deepseek-harness",
     "deepseek",
@@ -69,6 +69,7 @@
     "bundle": "tsdown",
     "watch": "tsdown --watch",
     "preview": "node scripts/preview-pet.mjs",
+    "preview:glow": "pnpm bundle && node scripts/preview-glow.mjs",
     "bench:anim": "node tools/anim-bench/build.mjs && node tools/anim-bench/measure.mjs",
     "test": "vitest run",
     "typecheck": "tsc --noEmit",
